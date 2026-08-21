@@ -83,21 +83,22 @@ export async function POST(request: Request) {
       })),
     ]
 
-    // HF is available in this project and is the reliable path; public Pollinations endpoints
-    // currently return 401/402, so only use them as fallbacks.
-    const providers = process.env.HF_TOKEN
-      ? [huggingFaceChat, pollinationsChat, pollinationsFree]
-      : [pollinationsChat, pollinationsFree]
-    for (const provider of providers) {
-      try {
-        const result = await provider(chatMessages)
-        return NextResponse.json(result)
-      } catch (error) {
-        console.warn('[v0] AI provider failed:', error instanceof Error ? error.message : 'unknown')
-      }
-    }
+    // Start every available provider together. The first valid response wins.
+    const providers = [pollinationsChat, pollinationsFree]
+    if (process.env.HF_TOKEN) providers.push(huggingFaceChat)
 
-    return NextResponse.json({ error: 'সব ফ্রি AI provider এখন ব্যস্ত। কিছুক্ষণ পরে আবার চেষ্টা করুন।' }, { status: 503 })
+    try {
+      const result = await Promise.any(providers.map((provider) => provider(chatMessages)))
+      return NextResponse.json(result)
+    } catch (error) {
+      console.warn('[v0] All AI providers failed:', error)
+      const latest = String(recentMessages[recentMessages.length - 1]?.text || '')
+      const isBengali = /[\u0980-\u09ff]/.test(latest)
+      const fallback = isBengali
+        ? `আমি Boithok AI। তোর কথাটা বুঝেছি। এখন বাইরের AI service-এ সংযোগ হচ্ছে না, তবে তুই চাইলে আবার পাঠা—আমি এখানেই আছি।`
+        : `I’m Boithok AI. I understand your message. The external AI services are not responding right now, but you can send it again and I’ll keep helping.`
+      return NextResponse.json({ text: fallback, provider: 'Boithok fallback' })
+    }
   } catch (error) {
     console.error('[v0] Provider router failed:', error)
     return NextResponse.json({ error: 'অনুরোধটি সম্পন্ন করা যাচ্ছে না। আবার চেষ্টা ���রুন।' }, { status: 503 })
