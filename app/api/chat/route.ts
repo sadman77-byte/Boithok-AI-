@@ -1,15 +1,28 @@
 import { NextResponse } from 'next/server'
 
+function banglaDate(date: Date) {
+  // Bangladesh civil Bangla calendar: 1 Boishakh is 14 April; months 1–6 are 31 days, months 7–12 are 30 days, with Falgun 31 in leap years.
+  const year = date.getUTCFullYear() - (date.getUTCMonth() < 3 || (date.getUTCMonth() === 3 && date.getUTCDate() < 14) ? 594 : 593)
+  const start = Date.UTC(year + 593, 3, 14)
+  const dayOfYear = Math.floor((Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()) - start) / 86400000)
+  const leap = new Date(Date.UTC(date.getUTCFullYear(), 1, 29)).getUTCDate() === 29
+  const monthLengths = [31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, leap ? 31 : 30]
+  let remaining = dayOfYear
+  let month = 0
+  while (remaining >= monthLengths[month]) { remaining -= monthLengths[month]; month += 1 }
+  const names = ['বৈশাখ', 'জ্যৈষ্ঠ', 'আষাঢ়', 'শ্রাবণ', 'ভাদ্র', 'আশ্বিন', 'কার্তিক', 'অগ্রহায়ণ', 'পৌষ', 'মাঘ', 'ফাল্গুন', 'চৈত্র']
+  return `${remaining + 1} ${names[month]}, ${year}`
+}
+
 function realtimeContext() {
   const now = new Date()
   const timeZone = 'Asia/Dhaka'
-  const getParts = (date: Date, calendar: string, locale: string) => new Intl.DateTimeFormat(locale, { calendar, year: 'numeric', month: 'long', day: 'numeric', timeZone }).formatToParts(date).reduce<Record<string, string>>((result, part) => { result[part.type] = part.value; return result }, {})
-  const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000)
-  const gregorian = getParts(now, 'gregory', 'en-GB')
-  const bengali = getParts(now, 'beng', 'bn-BD')
-  const yesterdayGregorian = getParts(yesterday, 'gregory', 'en-GB')
-  const yesterdayBengali = getParts(yesterday, 'beng', 'bn-BD')
-  return `Authoritative live date context for Bangladesh (timezone ${timeZone}): now=${now.toISOString()}; today Gregorian=${gregorian.day} ${gregorian.month}, ${gregorian.year}; today Bengali=${bengali.day} ${bengali.month}, ${bengali.year}; yesterday Gregorian=${yesterdayGregorian.day} ${yesterdayGregorian.month}, ${yesterdayGregorian.year}; yesterday Bengali=${yesterdayBengali.day} ${yesterdayBengali.month}, ${yesterdayBengali.year}. For date questions, calculate from this context—not from the user's assumption or model memory. Always use the exact requested order: Bengali "${bengali.day} ${bengali.month}, ${bengali.year}" and English "${gregorian.day} ${gregorian.month}, ${gregorian.year}". Never say only "${bengali.day} ভাদ্র" unless the calculated month is actually ভাদ্র.`
+  const localParts = new Intl.DateTimeFormat('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone }).formatToParts(now).reduce<Record<string, string>>((result, part) => { result[part.type] = part.value; return result }, {})
+  const localDate = new Date(Date.UTC(Number(localParts.year), Number(localParts.month) - 1, Number(localParts.day)))
+  const yesterday = new Date(localDate.getTime() - 86400000)
+  const dayBeforeYesterday = new Date(localDate.getTime() - 2 * 86400000)
+  const gregorian = (date: Date) => new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(date)
+  return `Authoritative live Bangladesh calendar context (timezone ${timeZone}, do not use Intl beng or guess): today Gregorian=${gregorian(localDate)}; today Bangla=${banglaDate(localDate)}; yesterday Gregorian=${gregorian(yesterday)}; yesterday Bangla=${banglaDate(yesterday)}; day before yesterday Gregorian=${gregorian(dayBeforeYesterday)}; day before yesterday Bangla=${banglaDate(dayBeforeYesterday)}. Bangladesh Bangla format is "day month, year". For example, under this official civil conversion, 19 August 2026 = ৪ ভাদ্র, ১৪৩৩; 20 August 2026 = ৫ ভাদ্র, ১৪৩৩; 21 August 2026 = ৬ ভাদ্র, ১৪৩৩. Correct false user-provided date mappings politely and show both calendars.`
 }
 
 const SYSTEM_PROMPT = (assistant: string) => `You are ${assistant || 'Boithok AI'}, a natural, warm, independent multilingual assistant. ${realtimeContext()} Understand the latest prompt and answer directly. Match the user's language and script. For date questions, use the current date/time context above, state the calendar and timezone, and never guess or use a stale training date. For arithmetic and logic, calculate carefully, show concise steps when useful, verify the result, and use exact notation. Render mathematical expressions in LaTeX with double-dollar delimiters. For linguistics and phonetics, act as a specialist. Use phonemic slashes for broad forms, for example /h/ and /tʃ/, and square brackets for narrow allophones, for example [tʰ] or [ɾ]. Include stress ˈ/ˌ, vowel length ː, syllable boundaries ., diacritics, minimal pairs, place/manner/voicing, IPA name and Unicode symbol when relevant. Distinguish phonetics from phonology, state the language and accent/variety, and never invent an IPA transcription when pronunciation is uncertain. Never repeat introductions, the prompt, or fixed wording. Do not ask unnecessary clarification questions. Be friendly, concise, specific, and complete the task when possible. For Bengali, mirror the user's level of respect: if the user uses তুই/তোকে/তোর, reply with তুই/তোকে/তোর; if the user uses আপনি/আপনার, reply with আপনি/আপনার; if the user uses তুমি/তোমার, reply with তুমি/তোমার. Never mix these forms in one reply. Do not use তুমি or আপনি when the user clearly uses তুই.`
