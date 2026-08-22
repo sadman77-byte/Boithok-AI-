@@ -59,15 +59,21 @@ async function pollinationsFree(messages: ChatMessage[]): Promise<ProviderResult
 async function huggingFaceChat(messages: ChatMessage[]): Promise<ProviderResult> {
   const token = process.env.HF_TOKEN
   if (!token) throw new Error('huggingface:missing-token')
-  const response = await fetch('https://router.huggingface.co/v1/chat/completions', {
-    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ model: process.env.HF_MODEL || 'Qwen/Qwen2.5-7B-Instruct', temperature: 0.7, max_tokens: 1200, messages }),
-    signal: AbortSignal.timeout(TIMEOUT_MS),
-  })
-  const data = await response.json()
-  const text = data?.choices?.[0]?.message?.content
-  if (!response.ok || typeof text !== 'string' || !text.trim()) throw new Error(`huggingface:${response.status}:${data?.error || 'empty-response'}`)
-  return { text: text.trim(), provider: 'Hugging Face' }
+  const models = [process.env.HF_MODEL, 'Qwen/Qwen3-4B-Instruct-2507', 'meta-llama/Llama-3.1-8B-Instruct', 'openai/gpt-oss-20b'].filter(Boolean) as string[]
+  let lastError = 'empty-response'
+  for (const model of models) {
+    const response = await fetch('https://router.huggingface.co/v1/chat/completions', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ model, temperature: 0.7, max_tokens: 1200, messages }),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    })
+    const data = await response.json()
+    const text = data?.choices?.[0]?.message?.content
+    if (response.ok && typeof text === 'string' && text.trim()) return { text: text.trim(), provider: `Hugging Face · ${model.split('/').pop()}` }
+    lastError = `${response.status}:${data?.error?.message || 'empty-response'}`
+    if (response.status !== 400) break
+  }
+  throw new Error(`huggingface:${lastError}`)
 }
 
 export async function POST(request: Request) {
