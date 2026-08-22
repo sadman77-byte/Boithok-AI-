@@ -96,12 +96,20 @@ export async function POST(request: Request) {
       return NextResponse.json(result)
     } catch (error) {
       console.warn('[v0] All AI providers failed:', error)
-      return NextResponse.json({
-        error: 'এই মুহূর্তে কোনো AI provider উত্তর দিতে পারেনি। Pollinations বা Hugging Face-এর সং��োগ ঠিক হলে আবার চেষ্টা করো।',
-      }, { status: 503 })
+      const latest = String(recentMessages[recentMessages.length - 1]?.text || '').trim()
+      const isBengali = /[\u0980-\u09ff]/.test(latest)
+      const isGreeting = /^(হাই|হ্যালো|আসসালামু আলাইকুম|কেমন আছিস|কেমন আছো|কেমন আছেন|hi|hello|hey)\b/i.test(latest)
+      const fallback = isBengali
+        ? isGreeting
+          ? 'ভালো আছি রে। তুই কেমন আছিস? কী নিয়ে কথা বলবি?'
+          : `তোর কথাটা পেয়েছি: “${latest}”। এই মুহূর্তে বাইরের মডেলগুলো সাড়া দিচ্ছে না, তাই ভুল উত্তর না দিয়ে পরিষ্কারভাবে জানাচ্ছি। একটু পর আবার পাঠালে নতুন করে চেষ্টা করব।`
+        : isGreeting
+          ? 'I’m doing well. What would you like to work on?'
+          : `I received your message: “${latest}”. The external models are not responding right now, so I won’t invent an answer. Please try again shortly.`
+      return NextResponse.json({ text: fallback, provider: 'Boithok safe fallback' })
     }
   } catch (error) {
     console.error('[v0] Provider router failed:', error)
-    return NextResponse.json({ error: 'অনুরোধটি সম্পন্ন করা যাচ্ছে না। আবার চেষ্টা ���রুন।' }, { status: 503 })
+    return NextResponse.json({ error: 'অনুরোধটি সম্পন্ন করা যাচ্ছে না। আবার চেষ্টা করুন।' }, { status: 503 })
   }
 }
