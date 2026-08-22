@@ -92,12 +92,9 @@ export async function POST(request: Request) {
       return NextResponse.json(result)
     } catch (error) {
       console.warn('[v0] All AI providers failed:', error)
-      const latest = String(recentMessages[recentMessages.length - 1]?.text || '')
-      const isBengali = /[\u0980-\u09ff]/.test(latest)
-      const fallback = isBengali
-        ? `আমি Boithok AI। তোর কথাটা বুঝেছি। এখন বাইরের AI service-এ সংযোগ হচ্ছে না, তবে তুই চাইলে আবার পাঠা—আমি এখানেই আছি।`
-        : `I’m Boithok AI. I understand your message. The external AI services are not responding right now, but you can send it again and I’ll keep helping.`
-      return NextResponse.json({ text: fallback, provider: 'Boithok fallback' })
+      return NextResponse.json({
+        error: 'এই মুহূর্তে কোনো AI provider উত্তর দিতে পারেনি। Pollinations বা Hugging Face-এর সংযোগ ঠিক হলে আবার চেষ্টা করো।',
+      }, { status: 503 })
     }
   } catch (error) {
     console.error('[v0] Provider router failed:', error)
