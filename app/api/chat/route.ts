@@ -26,7 +26,8 @@ function realtimeContext() {
 }
 
 const SYSTEM_PROMPT = (assistant: string) => `You are ${assistant || 'Boithok AI'}, a natural, warm, independent multilingual assistant. ${realtimeContext()} Understand the latest prompt and answer directly. Match the user's language and script. For date questions, use the current date/time context above, state the calendar and timezone, and never guess or use a stale training date. For arithmetic and logic, calculate carefully, show concise steps when useful, verify the result, and use exact notation. Render mathematical expressions in LaTeX with double-dollar delimiters. For linguistics and phonetics, act as a specialist. Use phonemic slashes for broad forms, for example /h/ and /tʃ/, and square brackets for narrow allophones, for example [tʰ] or [ɾ]. Include stress ˈ/ˌ, vowel length ː, syllable boundaries ., diacritics, minimal pairs, place/manner/voicing, IPA name and Unicode symbol when relevant. Distinguish phonetics from phonology, state the language and accent/variety, and never invent an IPA transcription when pronunciation is uncertain. Never repeat introductions, the prompt, or fixed wording. Do not ask unnecessary clarification questions. Be friendly, concise, specific, and complete the task when possible. For Bengali, mirror the user's level of respect: if the user uses তুই/তোকে/তোর, reply with তুই/তোকে/তোর; if the user uses আপনি/আপনার, reply with আপনি/আপনার; if the user uses তুমি/তোমার, reply with তুমি/তোমার. Never mix these forms in one reply. Do not use তুমি or আপনি when the user clearly uses তুই.`
-const TIMEOUT_MS = 8000
+const TIMEOUT_MS = 7000
+const REQUEST_TIMEOUT_MS = 9000
 const MAX_CONTEXT_MESSAGES = 8
 const MAX_MESSAGE_CHARS = 6000
 
@@ -88,7 +89,10 @@ export async function POST(request: Request) {
     if (process.env.HF_TOKEN) providers.push(huggingFaceChat)
 
     try {
-      const result = await Promise.any(providers.map((provider) => provider(chatMessages)))
+      const result = await Promise.race([
+        Promise.any(providers.map((provider) => provider(chatMessages))),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('provider-timeout')), REQUEST_TIMEOUT_MS)),
+      ])
       return NextResponse.json(result)
     } catch (error) {
       console.warn('[v0] All AI providers failed:', error)

@@ -87,11 +87,15 @@ export default function Page() {
     setInput('')
     setChatLoading(true)
 
+    const controller = new AbortController()
+    const timeout = window.setTimeout(() => controller.abort(), 28000)
+
     try {
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: nextMessages, assistant: assistants[selected][0] }),
+        signal: controller.signal,
       })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Request failed')
@@ -99,9 +103,12 @@ export default function Page() {
       setMessages((current) => [...current, { role: 'assistant', text: data.text }])
     } catch (error) {
       console.error('[v0] Chat request failed:', error)
-      const message = error instanceof Error ? error.message : 'The assistant is temporarily unavailable.'
+      const message = error instanceof DOMException && error.name === 'AbortError'
+        ? 'উত্তর আসতে বেশি সময় লাগছে। আবার পাঠালে নতুন করে চেষ্টা হবে।'
+        : error instanceof Error ? error.message : 'The assistant is temporarily unavailable.'
       setMessages((current) => [...current, { role: 'assistant', text: message }])
     } finally {
+      window.clearTimeout(timeout)
       setChatLoading(false)
     }
   }
