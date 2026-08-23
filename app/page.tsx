@@ -76,7 +76,7 @@ export default function Page() {
   const [provider, setProvider] = useState('Public-first AI')
   const [imageStyle, setImageStyle] = useState('cinematic editorial')
   const [imageAspect, setImageAspect] = useState('square')
-  const [negativePrompt, setNegativePrompt] = useState('unrequested people, unrequested gender, sexual content, nudity, blurry, distorted, low quality, watermark, duplicate subjects, extra limbs, malformed hands, random text')
+  const [negativePrompt, setNegativePrompt] = useState('unrequested people, women, girls, female subjects, faces, portraits, human figures, sexual content, nudity, romance, blurry, distorted, low quality, watermark, duplicate subjects, extra limbs, malformed hands, random text')
 
   const filtered = useMemo(() => assistants.filter(([name, desc]) => `${name} ${desc}`.toLowerCase().includes(query.toLowerCase())), [query])
 
@@ -121,12 +121,13 @@ export default function Page() {
     if (!subject) return
     setImageLoading(true)
     const dimensions = imageAspect === 'portrait' ? [832, 1216] : imageAspect === 'landscape' ? [1216, 832] : [1024, 1024]
+    const requestsPeople = /\b(person|people|man|men|woman|women|girl|boy|child|children|portrait|human|face|মেয়ে|মহিলা|নারী|মানুষ|ছেলে|শিশু|মুখ)\b/i.test(subject)
     const contextualPrompt = [
-      subject,
+      `PRIMARY SUBJECT — ${subject}`,
       `style: ${imageStyle}`,
-      'faithful to the requested subject and action, broad topic coverage including people, animals, nature, landscapes, architecture, food, products, fashion, science, technology, history, fantasy, vehicles, education, sports, travel, and abstract concepts',
-      'do not introduce an unrequested person, gender, body, romance, or sexual theme; use inclusive, non-stereotyped representation only when people are explicitly requested',
-      'single clear subject, intentional composition, correct proportions, natural lighting, sharp focus, high detail, professional visual direction',
+      'literal prompt adherence, depict the primary subject prominently and do not substitute it with another subject',
+      requestsPeople ? 'if people are requested, follow the requested identity and context without adding unrelated people' : 'no people, no women, no girls, no faces, no human figures, no gendered subjects anywhere in the image',
+      'clean intentional composition, correct proportions, natural lighting, sharp focus, high detail, professional visual direction',
     ].join(', ')
     const params = new URLSearchParams({
       width: String(dimensions[0]),
