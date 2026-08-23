@@ -121,14 +121,18 @@ export default function Page() {
     if (!subject) return
     setImageLoading(true)
     const dimensions = imageAspect === 'portrait' ? [832, 1216] : imageAspect === 'landscape' ? [1216, 832] : [1024, 1024]
-    const requestsPeople = /\b(person|people|man|men|woman|women|girl|boy|child|children|portrait|human|face|মেয়ে|মহিলা|নারী|মানুষ|ছেলে|শিশু|মুখ)\b/i.test(subject)
+    const requestsPeople = /(person|people|man|men|woman|women|girl|boy|child|children|portrait|human|face|মেয়ে|মহিলা|নারী|মানুষ|ছেলে|শিশু|মুখ|ব্যক্তি|নারীদের|পুরুষ)/iu.test(subject)
+    const subjectGuard = requestsPeople
+      ? 'only the requested people and context, no unrelated subjects or gender changes'
+      : 'the requested object, animal, place, food, vehicle, architecture, nature, or concept only; absolutely no people, women, girls, faces, portraits, bodies, or human figures'
     const contextualPrompt = [
-      `PRIMARY SUBJECT — ${subject}`,
-      `style: ${imageStyle}`,
-      'literal prompt adherence, depict the primary subject prominently and do not substitute it with another subject',
-      requestsPeople ? 'if people are requested, follow the requested identity and context without adding unrelated people' : 'no people, no women, no girls, no faces, no human figures, no gendered subjects anywhere in the image',
+      `PRIMARY SUBJECT: ${subject}`,
+      `STYLE: ${imageStyle}`,
+      'follow the primary subject literally; never replace it with a person or portrait',
+      subjectGuard,
+      `negative constraints: ${negativePrompt}`,
       'clean intentional composition, correct proportions, natural lighting, sharp focus, high detail, professional visual direction',
-    ].join(', ')
+    ].join('. ')
     const params = new URLSearchParams({
       width: String(dimensions[0]),
       height: String(dimensions[1]),
@@ -136,7 +140,6 @@ export default function Page() {
       nologo: 'true',
       enhance: 'true',
       seed: String(Math.floor(Math.random() * 999999)),
-      negative_prompt: negativePrompt,
     })
     setImageUrl(`https://image.pollinations.ai/prompt/${encodeURIComponent(contextualPrompt)}?${params}`)
     setTimeout(() => setImageLoading(false), 1400)
