@@ -76,7 +76,7 @@ export default function Page() {
   const [provider, setProvider] = useState('Public-first AI')
   const [imageStyle, setImageStyle] = useState('cinematic editorial')
   const [imageAspect, setImageAspect] = useState('square')
-  const [negativePrompt, setNegativePrompt] = useState('blurry, distorted, low quality, watermark, duplicate subjects')
+  const [negativePrompt, setNegativePrompt] = useState('unrequested people, unrequested gender, sexual content, nudity, blurry, distorted, low quality, watermark, duplicate subjects, extra limbs, malformed hands, random text')
 
   const filtered = useMemo(() => assistants.filter(([name, desc]) => `${name} ${desc}`.toLowerCase().includes(query.toLowerCase())), [query])
 
@@ -124,6 +124,8 @@ export default function Page() {
     const contextualPrompt = [
       subject,
       `style: ${imageStyle}`,
+      'faithful to the requested subject and action, broad topic coverage including people, animals, nature, landscapes, architecture, food, products, fashion, science, technology, history, fantasy, vehicles, education, sports, travel, and abstract concepts',
+      'do not introduce an unrequested person, gender, body, romance, or sexual theme; use inclusive, non-stereotyped representation only when people are explicitly requested',
       'single clear subject, intentional composition, correct proportions, natural lighting, sharp focus, high detail, professional visual direction',
     ].join(', ')
     const params = new URLSearchParams({
