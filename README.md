@@ -1,7 +1,7 @@
 # Boithok-AI-
 বৈঠক এ আই is a multiple expertize chatbot in all-rounder combination style.
 
-https://boithok-ee1dvdp5s-sadman-ishraqs-projects-ed512a09.vercel.app/
+https://independent-boithok-smart-hub.base44.app
 
 # Boithok AI
 
