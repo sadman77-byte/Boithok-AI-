@@ -48,7 +48,10 @@ async function pollinationsChat(messages: ChatMessage[]): Promise<ProviderResult
 }
 
 async function pollinationsFree(messages: ChatMessage[]): Promise<ProviderResult> {
-  const prompt = messages.filter((message) => message.role !== 'system').map((message) => `${message.role}: ${message.content}`).join('\\n')
+  const prompt = messages.filter((message) => message.role !== 'system').map((message) => {
+    if (typeof message.content === 'string') return `${message.role}: ${message.content}`
+    return `${message.role}: ${message.content.filter((part) => part.type === 'text').map((part) => part.text).join(' ')}`
+  }).join('\\n')
   const response = await fetch(`https://text.pollinations.ai/${encodeURIComponent(prompt)}`, {
     headers: { Accept: 'text/plain' }, signal: AbortSignal.timeout(TIMEOUT_MS),
   })
@@ -60,7 +63,11 @@ async function pollinationsFree(messages: ChatMessage[]): Promise<ProviderResult
 async function huggingFaceChat(messages: ChatMessage[]): Promise<ProviderResult> {
   const token = process.env.HF_TOKEN
   if (!token) throw new Error('huggingface:missing-token')
-  const models = [process.env.HF_MODEL, 'Qwen/Qwen3-4B-Instruct-2507', 'meta-llama/Llama-3.1-8B-Instruct', 'openai/gpt-oss-20b'].filter(Boolean) as string[]
+    const hasImage = messages.some((message) => Array.isArray(message.content) && message.content.some((part) => part.type === 'image_url'))
+    const models = hasImage
+      ? [process.env.HF_VISION_MODEL, 'Qwen/Qwen2.5-VL-7B-Instruct', 'Qwen/Qwen2.5-VL-3B-Instruct']
+      : [process.env.HF_MODEL, 'Qwen/Qwen3-4B-Instruct-2507', 'meta-llama/Llama-3.1-8B-Instruct', 'openai/gpt-oss-20b']
+    const availableModels = models.filter(Boolean) as string[]
   let lastError = 'empty-response'
   for (const model of models) {
     const response = await fetch('https://router.huggingface.co/v1/chat/completions', {
@@ -85,7 +92,7 @@ export async function POST(request: Request) {
     const recentMessages = messages.slice(-MAX_CONTEXT_MESSAGES)
     const safeAttachments = Array.isArray(attachments) ? attachments.filter((file) => typeof file?.data === 'string' && file.data.length < 12_000_000).slice(0, 3) : []
     const lastUser = recentMessages.findLast((message) => message.role === 'user')
-    const userContent: Array<{ type: 'text' | 'image_url'; text?: string; image_url?: { url: string } }> = [{ type: 'text', text: String(lastUser?.text || '').slice(0, MAX_MESSAGE_CHARS) }]
+    const userContent: Array<{ type: 'text' | 'image_url'; text?: string; image_url?: { url: string } }> = [{ type: 'text', text: `${String(lastUser?.text || '').slice(0, MAX_MESSAGE_CHARS)}\nAnalyze every attached image directly and answer the user's question about its visible content.` }]
     for (const file of safeAttachments) {
       if (file.type.startsWith('image/')) userContent.push({ type: 'image_url', image_url: { url: file.data } })
       else userContent[0].text += `\n[Attached ${file.type}: ${file.name}. This provider cannot directly decode this file type; explain that a text extraction/transcription step is needed.]`
@@ -97,8 +104,10 @@ export async function POST(request: Request) {
     ]
 
     // Start every available provider together. The first valid response wins.
-    const providers = [pollinationsChat, pollinationsFree]
-    if (process.env.HF_TOKEN) providers.push(huggingFaceChat)
+    const hasImageAttachment = safeAttachments.some((file) => file.type.startsWith('image/'))
+    const providers = hasImageAttachment
+      ? (process.env.HF_TOKEN ? [huggingFaceChat, pollinationsChat] : [pollinationsChat])
+      : [pollinationsChat, pollinationsFree, ...(process.env.HF_TOKEN ? [huggingFaceChat] : [])]
 
     try {
       const result = await Promise.race([
