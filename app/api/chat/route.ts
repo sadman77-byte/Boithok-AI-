@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { PDFParse } from 'pdf-parse'
 
 function banglaDate(date: Date) {
   // Bangladesh civil Bangla calendar: 1 Boishakh is 14 April; months 1–6 are 31 days, months 7–12 are 30 days, with Falgun 31 in leap years.
@@ -35,6 +36,35 @@ type ChatMessage = { role: 'system' | 'assistant'; content: string } | { role: '
 type Attachment = { name: string; type: string; data: string }
 type ProviderResult = { text: string; provider: string }
 
+function decodeDataUrl(data: string) {
+  const match = data.match(/^data:([^;]+);base64,(.+)$/s)
+  if (!match) throw new Error('attachment:invalid-data-url')
+  return { type: match[1], buffer: Buffer.from(match[2], 'base64') }
+}
+
+async function parseAttachment(file: Attachment) {
+  const decoded = decodeDataUrl(file.data)
+  if (file.type === 'application/pdf' || decoded.type === 'application/pdf') {
+    const parser = new PDFParse({ data: decoded.buffer })
+    try {
+      const result = await parser.getText()
+      return `[PDF: ${file.name}]\\n${result.text.slice(0, 30000)}`
+    } finally { await parser.destroy() }
+  }
+  if (file.type.startsWith('audio/') || decoded.type.startsWith('audio/')) {
+    const token = process.env.HF_TOKEN
+    if (!token) return `[Audio: ${file.name}] Transcription unavailable because HF_TOKEN is not configured.`
+    const response = await fetch('https://router.huggingface.co/hf-inference/models/openai/whisper-large-v3-turbo', {
+      method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': file.type },
+      body: decoded.buffer, signal: AbortSignal.timeout(TIMEOUT_MS),
+    })
+    const result = await response.json()
+    if (!response.ok || typeof result?.text !== 'string') throw new Error(`audio-transcription:${response.status}`)
+    return `[Audio transcription: ${file.name}]\\n${result.text.slice(0, 20000)}`
+  }
+  return ''
+}
+
 async function pollinationsChat(messages: ChatMessage[]): Promise<ProviderResult> {
   const response = await fetch('https://gen.pollinations.ai/v1/chat/completions', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -69,7 +99,7 @@ async function huggingFaceChat(messages: ChatMessage[]): Promise<ProviderResult>
       : [process.env.HF_MODEL, 'Qwen/Qwen3-4B-Instruct-2507', 'meta-llama/Llama-3.1-8B-Instruct', 'openai/gpt-oss-20b']
     const availableModels = models.filter(Boolean) as string[]
   let lastError = 'empty-response'
-  for (const model of models) {
+  for (const model of availableModels) {
     const response = await fetch('https://router.huggingface.co/v1/chat/completions', {
       method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ model, temperature: 0.7, max_tokens: 1200, messages }),
@@ -91,11 +121,11 @@ export async function POST(request: Request) {
 
     const recentMessages = messages.slice(-MAX_CONTEXT_MESSAGES)
     const safeAttachments = Array.isArray(attachments) ? attachments.filter((file) => typeof file?.data === 'string' && file.data.length < 12_000_000).slice(0, 3) : []
+    const parsedText = (await Promise.all(safeAttachments.map(async (file) => { try { return await parseAttachment(file) } catch (error) { console.warn('[v0] Attachment parsing failed:', file.name, error); return `[${file.name}] Could not be parsed.` } }))).filter(Boolean).join('\\n\\n')
     const lastUser = recentMessages.findLast((message) => message.role === 'user')
-    const userContent: Array<{ type: 'text' | 'image_url'; text?: string; image_url?: { url: string } }> = [{ type: 'text', text: `${String(lastUser?.text || '').slice(0, MAX_MESSAGE_CHARS)}\nAnalyze every attached image directly and answer the user's question about its visible content.` }]
+    const userContent: Array<{ type: 'text' | 'image_url'; text?: string; image_url?: { url: string } }> = [{ type: 'text', text: `${String(lastUser?.text || '').slice(0, MAX_MESSAGE_CHARS)}\\n${parsedText}\\nAnalyze the actual attached content and answer the user's question.` }]
     for (const file of safeAttachments) {
       if (file.type.startsWith('image/')) userContent.push({ type: 'image_url', image_url: { url: file.data } })
-      else userContent[0].text += `\n[Attached ${file.type}: ${file.name}. This provider cannot directly decode this file type; explain that a text extraction/transcription step is needed.]`
     }
     const chatMessages: ChatMessage[] = [
       { role: 'system', content: SYSTEM_PROMPT(assistant) },
