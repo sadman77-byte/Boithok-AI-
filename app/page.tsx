@@ -7,7 +7,6 @@ import {
   ChevronDown,
   Copy,
   FileText,
-  Image as ImageIcon,
   Languages,
   Menu,
   MessageSquarePlus,
@@ -19,7 +18,6 @@ import {
   Sparkles,
   Sun,
   Upload,
-  WandSparkles,
   X,
 } from 'lucide-react'
 
@@ -56,7 +54,7 @@ const assistants = [
   ['Boithok Simplify', 'Make anything easier to understand', 'S'],
 ]
 
-const starterPrompts = ['Explain something clearly', 'Translate a PDF', 'Create an image', 'Help me plan a project']
+const starterPrompts = ['Explain something clearly', 'Translate a PDF', 'Help me plan a project']
 
 type Message = { role: 'user' | 'assistant'; text: string }
 
@@ -66,25 +64,22 @@ export default function Page() {
   const [query, setQuery] = useState('')
   const [input, setInput] = useState('')
   const [messages, setMessages] = useState<Message[]>([])
-  const [tool, setTool] = useState<'chat' | 'translate' | 'image'>('chat')
+  const [tool, setTool] = useState<'chat' | 'translate'>('chat')
   const [dark, setDark] = useState(true)
-  const [imageUrl, setImageUrl] = useState('')
-  const [imageLoading, setImageLoading] = useState(false)
+  const [attachments, setAttachments] = useState<File[]>([])
   const [pdfName, setPdfName] = useState('')
   const [translated, setTranslated] = useState(false)
   const [chatLoading, setChatLoading] = useState(false)
   const [provider, setProvider] = useState('Public-first AI')
-  const [imageStyle, setImageStyle] = useState('cinematic editorial')
-  const [imageAspect, setImageAspect] = useState('square')
-  const [negativePrompt, setNegativePrompt] = useState('unrequested people, women, girls, female subjects, faces, portraits, human figures, sexual content, nudity, romance, blurry, distorted, low quality, watermark, duplicate subjects, extra limbs, malformed hands, random text')
 
   const filtered = useMemo(() => assistants.filter(([name, desc]) => `${name} ${desc}`.toLowerCase().includes(query.toLowerCase())), [query])
 
   async function send(text = input) {
     const prompt = text.trim()
-    if (!prompt || chatLoading) return
+    if ((!prompt && attachments.length === 0) || chatLoading) return
 
-    const userMessage: Message = { role: 'user', text: prompt }
+    const attachmentContext = attachments.length > 0 ? `\n\nAttached files for analysis: ${attachments.map((file) => `${file.name} (${file.type || 'unknown type'})`).join(', ')}. Explain what can be learned from these files and ask for no unnecessary repetition.` : ''
+    const userMessage: Message = { role: 'user', text: `${prompt}${attachmentContext}` }
     const nextMessages = [...messages, userMessage]
     setMessages(nextMessages)
     setInput('')
@@ -116,35 +111,6 @@ export default function Page() {
     }
   }
 
-  function generateImage() {
-    const subject = input.trim()
-    if (!subject) return
-    setImageLoading(true)
-    const dimensions = imageAspect === 'portrait' ? [832, 1216] : imageAspect === 'landscape' ? [1216, 832] : [1024, 1024]
-    const requestsPeople = /(person|people|man|men|woman|women|girl|boy|child|children|portrait|human|face|মেয়ে|মহিলা|নারী|মানুষ|ছেলে|শিশু|মুখ|ব্যক্তি|নারীদের|পুরুষ)/iu.test(subject)
-    const subjectGuard = requestsPeople
-      ? 'only the requested people and context, no unrelated subjects or gender changes'
-      : 'the requested object, animal, place, food, vehicle, architecture, nature, or concept only; absolutely no people, women, girls, faces, portraits, bodies, or human figures'
-    const contextualPrompt = [
-      `PRIMARY SUBJECT: ${subject}`,
-      `STYLE: ${imageStyle}`,
-      'follow the primary subject literally; never replace it with a person or portrait',
-      subjectGuard,
-      `negative constraints: ${negativePrompt}`,
-      'clean intentional composition, correct proportions, natural lighting, sharp focus, high detail, professional visual direction',
-    ].join('. ')
-    const params = new URLSearchParams({
-      width: String(dimensions[0]),
-      height: String(dimensions[1]),
-      model: 'flux',
-      nologo: 'true',
-      enhance: 'true',
-      seed: String(Math.floor(Math.random() * 999999)),
-    })
-    setImageUrl(`https://image.pollinations.ai/prompt/${encodeURIComponent(contextualPrompt)}?${params}`)
-    setTimeout(() => setImageLoading(false), 1400)
-  }
-
   return (
     <div className={dark ? 'app-shell dark' : 'app-shell'}>
       <aside className="rail">
@@ -152,7 +118,6 @@ export default function Page() {
         <nav className="rail-nav" aria-label="Primary navigation">
           <button className="rail-button active" onClick={() => setTool('chat')} aria-label="Chat"><MessageSquarePlus /></button>
           <button className="rail-button" onClick={() => setTool('translate')} aria-label="PDF translation"><Languages /></button>
-          <button className="rail-button" onClick={() => setTool('image')} aria-label="Image generation"><ImageIcon /></button>
         </nav>
         <div className="rail-bottom">
           <button className="rail-button" onClick={() => setDark((value) => !value)} aria-label="Toggle theme">{dark ? <Sun /> : <Moon />}</button>
@@ -177,12 +142,10 @@ export default function Page() {
         </header>
 
         <section className="chat-area">
-          {messages.length === 0 ? <div className="welcome"><div className="welcome-icon"><Sparkles /></div><p className="eyebrow">BOITHOK AI · FREE FOREVER WORKSPACE</p><h1>What can we make<br /><em>clearer</em> today?</h1><p className="welcome-copy">Thirty focused assistants for thinking, writing, translating, and creating. Built to stay useful through 2050.</p><div className="starter-grid">{starterPrompts.map((prompt) => <button key={prompt} onClick={() => { setInput(prompt); setTool(prompt === 'Create an image' ? 'image' : prompt === 'Translate a PDF' ? 'translate' : 'chat') }}>{prompt}<ArrowUp /></button>)}</div></div> : <div className="transcript">{messages.map((message, index) => <div className={`message ${message.role}`} key={`${message.role}-${index}`}><span className="message-label">{message.role === 'user' ? 'You' : assistants[selected][0]}</span><p>{message.text}</p>{message.role === 'assistant' && <button className="copy-button" onClick={() => navigator.clipboard?.writeText(message.text)}><Copy /> Copy</button>}</div>)}{chatLoading && <div className="message assistant"><span className="message-label">{assistants[selected][0]}</span><p>Thinking…</p></div>}</div>}
+          {messages.length === 0 ? <div className="welcome"><div className="welcome-icon"><Sparkles /></div><p className="eyebrow">BOITHOK AI · FREE FOREVER WORKSPACE</p><h1>What can we make<br /><em>clearer</em> today?</h1><p className="welcome-copy">Thirty focused assistants for thinking, writing, translating, and creating. Built to stay useful through 2050.</p><div className="starter-grid">{starterPrompts.map((prompt) => <button key={prompt} onClick={() => { setInput(prompt); setTool(prompt === 'Translate a PDF' ? 'translate' : 'chat') }}>{prompt}<ArrowUp /></button>)}</div></div> : <div className="transcript">{messages.map((message, index) => <div className={`message ${message.role}`} key={`${message.role}-${index}`}><span className="message-label">{message.role === 'user' ? 'You' : assistants[selected][0]}</span><p>{message.text}</p>{message.role === 'assistant' && <button className="copy-button" onClick={() => navigator.clipboard?.writeText(message.text)}><Copy /> Copy</button>}</div>)}{chatLoading && <div className="message assistant"><span className="message-label">{assistants[selected][0]}</span><p>Thinking…</p></div>}</div>}
 
           {tool === 'translate' && <div className="tool-card"><div className="tool-card-header"><div className="tool-icon"><FileText /></div><div><h2>Translate a PDF</h2><p>Keep structure, change the language.</p></div></div><label className="upload-zone"><Upload /><strong>{pdfName || 'Drop a PDF here'}</strong><small>or choose a file · up to 25 MB</small><input type="file" accept="application/pdf" onChange={(event) => setPdfName(event.target.files?.[0]?.name || '')} /></label><div className="language-row"><label>From<select><option>Auto-detect</option><option>English</option><option>বাংলা</option></select></label><span>→</span><label>To<select><option>বাংলা</option><option>English</option><option>Español</option></select></label></div><button className="primary-button" disabled={!pdfName} onClick={() => setTranslated(true)}>{translated ? 'Translation ready' : 'Translate PDF'}<Languages /></button></div>}
-          {tool === 'image' && <div className="tool-card"><div className="tool-card-header"><div className="tool-icon"><WandSparkles /></div><div><h2>Create an image</h2><p>Powered by Pollinations AI · free.</p></div></div>{imageUrl && <img className="generated-image" src={imageUrl} alt="Generated from your prompt" onError={() => { setImageLoading(false); setImageUrl('') }} />}<div className="image-controls"><label>Style<select value={imageStyle} onChange={(event) => setImageStyle(event.target.value)}><option>cinematic editorial</option><option>photorealistic</option><option>digital illustration</option><option>watercolor</option><option>minimal 3D</option></select></label><label>Format<select value={imageAspect} onChange={(event) => setImageAspect(event.target.value)}><option value="square">Square</option><option value="portrait">Portrait</option><option value="landscape">Landscape</option></select></label></div><label className="negative-control">Avoid<input value={negativePrompt} onChange={(event) => setNegativePrompt(event.target.value)} /></label>{imageLoading && <p className="status-line">Generating a contextual image…</p>}<button className="primary-button" onClick={generateImage} disabled={!input.trim() || imageLoading}>{imageLoading ? 'Creating…' : 'Generate image'}<ImageIcon /></button>{imageUrl && <a className="download-link" href={imageUrl} target="_blank" rel="noreferrer">Open full image</a>}</div>}
-
-          <div className="composer-wrap"><div className="composer"><button className="composer-icon" aria-label="Attach a file"><Paperclip /></button><textarea value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing && event.keyCode !== 229) { event.preventDefault(); tool === 'image' ? generateImage() : send() } }} placeholder={tool === 'translate' ? 'Add a PDF above to begin…' : tool === 'image' ? 'Describe the image you want…' : `Message ${assistants[selected][0]}…`} rows={1} /><button className="send-button" onClick={() => tool === 'image' ? generateImage() : send()} aria-label="Send message"><ArrowUp /></button></div><p className="composer-note">Boithok can make mistakes. Check important information.</p></div>
+          <div className="composer-wrap">{attachments.length > 0 && <div className="attachment-list" aria-label="Attached files">{attachments.map((file) => <span key={`${file.name}-${file.lastModified}`} className="attachment-chip">{file.type.startsWith('image/') ? 'Image' : file.type.startsWith('audio/') ? 'Audio' : 'PDF'} · {file.name}<button type="button" onClick={() => setAttachments((current) => current.filter((item) => item !== file))} aria-label={`Remove ${file.name}`}>×</button></span>)}</div>}<div className="composer"><label className="composer-icon" aria-label="Attach image, audio, or PDF"><Paperclip /><input className="attachment-input" type="file" accept="image/*,audio/*,application/pdf" multiple onChange={(event) => setAttachments(Array.from(event.target.files || []))} /></label><textarea value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing && event.keyCode !== 229) { event.preventDefault(); send() } }} placeholder={tool === 'translate' ? 'Add a PDF above to begin…' : tool === 'image' ? 'Describe the image you want…' : `Message ${assistants[selected][0]}…`} rows={1} /><button className="send-button" onClick={() => send()} aria-label="Send message"><ArrowUp /></button></div><p className="composer-note">Boithok can make mistakes. Check important information.</p></div>
         </section>
       </main>
     </div>
