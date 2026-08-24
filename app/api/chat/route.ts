@@ -95,7 +95,7 @@ async function huggingFaceChat(messages: ChatMessage[]): Promise<ProviderResult>
   if (!token) throw new Error('huggingface:missing-token')
     const hasImage = messages.some((message) => Array.isArray(message.content) && message.content.some((part) => part.type === 'image_url'))
     const models = hasImage
-      ? [process.env.HF_VISION_MODEL, 'Qwen/Qwen2.5-VL-7B-Instruct', 'Qwen/Qwen2.5-VL-3B-Instruct']
+      ? [process.env.HF_VISION_MODEL, 'Qwen/Qwen2.5-VL-7B-Instruct', 'Qwen/Qwen2.5-VL-3B-Instruct', 'google/gemma-3-4b-it']
       : [process.env.HF_MODEL, 'Qwen/Qwen3-4B-Instruct-2507', 'meta-llama/Llama-3.1-8B-Instruct', 'openai/gpt-oss-20b']
     const availableModels = models.filter(Boolean) as string[]
   let lastError = 'empty-response'
@@ -127,16 +127,18 @@ export async function POST(request: Request) {
     for (const file of safeAttachments) {
       if (file.type.startsWith('image/')) userContent.push({ type: 'image_url', image_url: { url: file.data } })
     }
-    const chatMessages: ChatMessage[] = [
+    const baseMessages: ChatMessage[] = [
       { role: 'system', content: SYSTEM_PROMPT(assistant) },
       ...recentMessages.slice(0, -1).map((message) => ({ role: message.role, content: String(message.text).slice(0, MAX_MESSAGE_CHARS) })),
-      ...(lastUser ? [{ role: 'user' as const, content: userContent }] : []),
     ]
-
-    // Start every available provider together. The first valid response wins.
     const hasImageAttachment = safeAttachments.some((file) => file.type.startsWith('image/'))
+    const chatMessages: ChatMessage[] = lastUser
+      ? [...baseMessages, { role: 'user' as const, content: hasImageAttachment ? userContent : `${userContent[0].text || ''}` }]
+      : baseMessages
+
+    // Use vision models for images; use text models for parsed PDF/audio content.
     const providers = hasImageAttachment
-      ? (process.env.HF_TOKEN ? [huggingFaceChat, pollinationsChat] : [pollinationsChat])
+      ? (process.env.HF_TOKEN ? [huggingFaceChat] : [])
       : [pollinationsChat, pollinationsFree, ...(process.env.HF_TOKEN ? [huggingFaceChat] : [])]
 
     try {
