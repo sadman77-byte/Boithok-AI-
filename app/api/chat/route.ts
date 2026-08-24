@@ -31,7 +31,8 @@ const REQUEST_TIMEOUT_MS = 22000
 const MAX_CONTEXT_MESSAGES = 8
 const MAX_MESSAGE_CHARS = 6000
 
-type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string }
+type ChatMessage = { role: 'system' | 'assistant'; content: string } | { role: 'user'; content: string | Array<{ type: 'text' | 'image_url'; text?: string; image_url?: { url: string } }> }
+type Attachment = { name: string; type: string; data: string }
 type ProviderResult = { text: string; provider: string }
 
 async function pollinationsChat(messages: ChatMessage[]): Promise<ProviderResult> {
@@ -78,16 +79,21 @@ async function huggingFaceChat(messages: ChatMessage[]): Promise<ProviderResult>
 
 export async function POST(request: Request) {
   try {
-    const { messages, assistant } = await request.json()
+    const { messages, assistant, attachments = [] } = await request.json() as { messages: Array<{ role: 'user' | 'assistant'; text: string }>; assistant?: string; attachments?: Attachment[] }
     if (!Array.isArray(messages) || messages.length === 0) return NextResponse.json({ error: 'A message is required.' }, { status: 400 })
 
     const recentMessages = messages.slice(-MAX_CONTEXT_MESSAGES)
+    const safeAttachments = Array.isArray(attachments) ? attachments.filter((file) => typeof file?.data === 'string' && file.data.length < 12_000_000).slice(0, 3) : []
+    const lastUser = recentMessages.findLast((message) => message.role === 'user')
+    const userContent: Array<{ type: 'text' | 'image_url'; text?: string; image_url?: { url: string } }> = [{ type: 'text', text: String(lastUser?.text || '').slice(0, MAX_MESSAGE_CHARS) }]
+    for (const file of safeAttachments) {
+      if (file.type.startsWith('image/')) userContent.push({ type: 'image_url', image_url: { url: file.data } })
+      else userContent[0].text += `\n[Attached ${file.type}: ${file.name}. This provider cannot directly decode this file type; explain that a text extraction/transcription step is needed.]`
+    }
     const chatMessages: ChatMessage[] = [
       { role: 'system', content: SYSTEM_PROMPT(assistant) },
-      ...recentMessages.map((message: { role: 'user' | 'assistant'; text: string }) => ({
-        role: message.role,
-        content: String(message.text).slice(0, MAX_MESSAGE_CHARS),
-      })),
+      ...recentMessages.slice(0, -1).map((message) => ({ role: message.role, content: String(message.text).slice(0, MAX_MESSAGE_CHARS) })),
+      ...(lastUser ? [{ role: 'user' as const, content: userContent }] : []),
     ]
 
     // Start every available provider together. The first valid response wins.

@@ -78,7 +78,17 @@ export default function Page() {
     const prompt = text.trim()
     if ((!prompt && attachments.length === 0) || chatLoading) return
 
-    const attachmentContext = attachments.length > 0 ? `\n\nAttached files for analysis: ${attachments.map((file) => `${file.name} (${file.type || 'unknown type'})`).join(', ')}. Explain what can be learned from these files and ask for no unnecessary repetition.` : ''
+    const encodedAttachments = await Promise.all(attachments.map(async (file) => ({
+      name: file.name,
+      type: file.type || 'application/octet-stream',
+      data: await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(String(reader.result))
+        reader.onerror = () => reject(reader.error)
+        reader.readAsDataURL(file)
+      }),
+    })))
+    const attachmentContext = attachments.length > 0 ? `\n\nAttached files: ${attachments.map((file) => `${file.name} (${file.type || 'unknown type'})`).join(', ')}. Analyze the actual attached content, not only the filenames.` : ''
     const userMessage: Message = { role: 'user', text: `${prompt}${attachmentContext}` }
     const nextMessages = [...messages, userMessage]
     setMessages(nextMessages)
@@ -92,7 +102,7 @@ export default function Page() {
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: nextMessages, assistant: assistants[selected][0] }),
+        body: JSON.stringify({ messages: nextMessages, assistant: assistants[selected][0], attachments: encodedAttachments }),
         signal: controller.signal,
       })
       const data = await response.json()
