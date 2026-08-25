@@ -70,10 +70,13 @@ async function openRouterChat(messages: ChatMessage[]): Promise<ProviderResult> 
   const host = process.env.HOST_2
   if (!secret || !host) throw new Error('openrouter:missing-config')
   const base = /^https?:\/\//i.test(host) ? host.replace(/\/$/, '') : `https://${host}`
-  const response = await fetch(`${base}/api/v1/chat/completions`, {
+  const endpoint = /\/api\/v1$/i.test(base) ? `${base}/chat/completions` : `${base}/api/v1/chat/completions`
+  const hasImage = messages.some((message) => Array.isArray(message.content) && message.content.some((part) => part.type === 'image_url'))
+  const model = hasImage ? 'openrouter/free' : 'openrouter/free'
+  const response = await fetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${secret}`, 'HTTP-Referer': 'https://boithok-ai.vercel.app', 'X-Title': 'Boithok AI' },
-    body: JSON.stringify({ model: 'openrouter/free', temperature: 0.7, max_tokens: 1200, messages }),
+    body: JSON.stringify({ model, temperature: 0.7, max_tokens: 1200, messages, ...(hasImage ? { modalities: ['text', 'image'] } : {}) }),
     signal: AbortSignal.timeout(TIMEOUT_MS),
   })
   const data = await response.json()
@@ -170,7 +173,7 @@ export async function POST(request: Request) {
       const isBengali = /[\u0980-\u09ff]/.test(latest)
       const isGreeting = /^(হাই|হ্যালো|আসসালামু আলাইকুম|কেমন আছিস|কেমন আছো|কেমন আছেন|hi|hello|hey)\b/i.test(latest)
       const fallback = safeAttachments.length > 0
-        ? `ফাইলটি পাওয়া গেছে, কিন্তু এই মুহূর্তে vision/file-analysis model থেকে নির্ভরযোগ্য ফল পাওয়া যায়নি। ফাইলটি আবার attach করে প্রশ্নটি পাঠাও।`
+        ? `ফাইলটি সংযুক্ত হয়েছে, কিন্তু বিশ্লেষণ service থেকে উত্তর আসেনি। ফাইলটি ঠিকভাবে পাঠানো হয়েছে—প্রশ্নটি আবার পাঠানোর আগে attachment সরানোর দরকার নেই।`
         : isBengali
           ? isGreeting
             ? 'ভালো আছি রে। তুই কেমন আছিস? কী নিয়ে কথা বলবি?'
