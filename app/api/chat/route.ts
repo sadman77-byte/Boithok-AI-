@@ -65,6 +65,23 @@ async function parseAttachment(file: Attachment) {
   return ''
 }
 
+async function openRouterChat(messages: ChatMessage[]): Promise<ProviderResult> {
+  const secret = process.env.SECRET_2
+  const host = process.env.HOST_2
+  if (!secret || !host) throw new Error('openrouter:missing-config')
+  const base = /^https?:\/\//i.test(host) ? host.replace(/\/$/, '') : `https://${host}`
+  const response = await fetch(`${base}/api/v1/chat/completions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${secret}`, 'HTTP-Referer': 'https://boithok-ai.vercel.app', 'X-Title': 'Boithok AI' },
+    body: JSON.stringify({ model: 'openrouter/free', temperature: 0.7, max_tokens: 1200, messages }),
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  })
+  const data = await response.json()
+  const text = data?.choices?.[0]?.message?.content
+  if (!response.ok || typeof text !== 'string' || !text.trim()) throw new Error(`openrouter:${response.status}:${data?.error?.message || 'empty-response'}`)
+  return { text: text.trim(), provider: 'OpenRouter Free' }
+}
+
 async function pollinationsChat(messages: ChatMessage[]): Promise<ProviderResult> {
   const response = await fetch('https://gen.pollinations.ai/v1/chat/completions', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -138,8 +155,8 @@ export async function POST(request: Request) {
 
     // Use vision models for images; use text models for parsed PDF/audio content.
     const providers = hasImageAttachment
-      ? (process.env.HF_TOKEN ? [huggingFaceChat] : [])
-      : [pollinationsChat, pollinationsFree, ...(process.env.HF_TOKEN ? [huggingFaceChat] : [])]
+      ? [openRouterChat, ...(process.env.HF_TOKEN ? [huggingFaceChat] : [])]
+      : [openRouterChat, pollinationsChat, pollinationsFree, ...(process.env.HF_TOKEN ? [huggingFaceChat] : [])]
 
     try {
       const result = await Promise.race([
