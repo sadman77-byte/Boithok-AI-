@@ -95,7 +95,7 @@ async function huggingFaceChat(messages: ChatMessage[]): Promise<ProviderResult>
   if (!token) throw new Error('huggingface:missing-token')
     const hasImage = messages.some((message) => Array.isArray(message.content) && message.content.some((part) => part.type === 'image_url'))
     const models = hasImage
-      ? [process.env.HF_VISION_MODEL, 'Qwen/Qwen2.5-VL-7B-Instruct', 'Qwen/Qwen2.5-VL-3B-Instruct', 'google/gemma-3-4b-it']
+      ? [process.env.HF_VISION_MODEL, 'Qwen/Qwen2.5-VL-72B-Instruct', 'Qwen/Qwen2.5-VL-7B-Instruct', 'google/gemma-3-27b-it', 'google/gemma-3-4b-it']
       : [process.env.HF_MODEL, 'Qwen/Qwen3-4B-Instruct-2507', 'meta-llama/Llama-3.1-8B-Instruct', 'openai/gpt-oss-20b']
     const availableModels = models.filter(Boolean) as string[]
   let lastError = 'empty-response'
@@ -123,7 +123,7 @@ export async function POST(request: Request) {
     const safeAttachments = Array.isArray(attachments) ? attachments.filter((file) => typeof file?.data === 'string' && file.data.length < 12_000_000).slice(0, 3) : []
     const parsedText = (await Promise.all(safeAttachments.map(async (file) => { try { return await parseAttachment(file) } catch (error) { console.warn('[v0] Attachment parsing failed:', file.name, error); return `[${file.name}] Could not be parsed.` } }))).filter(Boolean).join('\\n\\n')
     const lastUser = recentMessages.findLast((message) => message.role === 'user')
-    const userContent: Array<{ type: 'text' | 'image_url'; text?: string; image_url?: { url: string } }> = [{ type: 'text', text: `${String(lastUser?.text || '').slice(0, MAX_MESSAGE_CHARS)}\\n${parsedText}\\nAnalyze the actual attached content and answer the user's question.` }]
+    const userContent: Array<{ type: 'text' | 'image_url'; text?: string; image_url?: { url: string } }> = [{ type: 'text', text: `${String(lastUser?.text || '').slice(0, MAX_MESSAGE_CHARS)}\\n${parsedText}\\nYou have the actual attached image. Inspect its visual content carefully, describe only what is visible, and answer the user's question. Do not claim the file is unavailable unless every vision model fails.` }]
     for (const file of safeAttachments) {
       if (file.type.startsWith('image/')) userContent.push({ type: 'image_url', image_url: { url: file.data } })
     }
@@ -152,10 +152,12 @@ export async function POST(request: Request) {
       const latest = String(recentMessages[recentMessages.length - 1]?.text || '').trim()
       const isBengali = /[\u0980-\u09ff]/.test(latest)
       const isGreeting = /^(হাই|হ্যালো|আসসালামু আলাইকুম|কেমন আছিস|কেমন আছো|কেমন আছেন|hi|hello|hey)\b/i.test(latest)
-      const fallback = isBengali
-        ? isGreeting
-          ? 'ভালো আছি রে। তুই কেমন আছিস? কী নিয়ে কথা বলবি?'
-          : `তোর কথাটা পেয়েছি: “${latest}”। এই মুহূর্তে বাইরের মডেলগুলো সাড়া দিচ্ছে না, তাই ভুল উত্তর না দিয়ে পরিষ্কারভাবে জানাচ্ছি। একটু পর আবার পাঠালে নতুন করে চেষ্টা করব।`
+      const fallback = safeAttachments.length > 0
+        ? `ফাইলটি পাওয়া গেছে, কিন্তু এই মুহূর্তে vision/file-analysis model থেকে নির্ভরযোগ্য ফল পাওয়া যায়নি। ফাইলটি আবার attach করে প্রশ্নটি পাঠাও।`
+        : isBengali
+          ? isGreeting
+            ? 'ভালো আছি রে। তুই কেমন আছিস? কী নিয়ে কথা বলবি?'
+            : `তোর কথাটা পেয়েছি: “${latest}”। এই মুহূর্তে বাইরের মডেলগুলো সাড়া দিচ্ছে না। একটু পর আবার চেষ্টা করো।`
         : isGreeting
           ? 'I’m doing well. What would you like to work on?'
           : `I received your message: “${latest}”. The external models are not responding right now, so I won’t invent an answer. Please try again shortly.`
