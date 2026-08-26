@@ -123,7 +123,7 @@ async function huggingFaceChat(messages: ChatMessage[]): Promise<ProviderResult>
   if (!token) throw new Error('huggingface:missing-token')
     const hasImage = messages.some((message) => Array.isArray(message.content) && message.content.some((part) => part.type === 'image_url'))
     const models = hasImage
-      ? [process.env.HF_VISION_MODEL, 'Qwen/Qwen2.5-VL-72B-Instruct', 'Qwen/Qwen2.5-VL-7B-Instruct', 'google/gemma-3-27b-it', 'google/gemma-3-4b-it']
+      ? [process.env.HF_VISION_MODEL, 'Qwen/Qwen2.5-VL-7B-Instruct', 'google/gemma-3-27b-it']
       : [process.env.HF_MODEL, 'Qwen/Qwen3-4B-Instruct-2507', 'meta-llama/Llama-3.1-8B-Instruct', 'openai/gpt-oss-20b']
     const availableModels = models.filter(Boolean) as string[]
   let lastError = 'empty-response'
@@ -151,7 +151,7 @@ export async function POST(request: Request) {
     const safeAttachments = Array.isArray(attachments) ? attachments.filter((file) => typeof file?.data === 'string' && file.data.length < 12_000_000).slice(0, 3) : []
     const parsedText = (await Promise.all(safeAttachments.map(async (file) => { try { return await parseAttachment(file) } catch (error) { console.warn('[v0] Attachment parsing failed:', file.name, error); return `[${file.name}] Could not be parsed.` } }))).filter(Boolean).join('\\n\\n')
     const lastUser = recentMessages.findLast((message) => message.role === 'user')
-    const userContent: Array<{ type: 'text' | 'image_url'; text?: string; image_url?: { url: string } }> = [{ type: 'text', text: `${String(lastUser?.text || '').slice(0, MAX_MESSAGE_CHARS)}\\n${parsedText}\\nInspect the attached image directly and answer from its visible content.` }]
+    const userContent: Array<{ type: 'text' | 'image_url'; text?: string; image_url?: { url: string } }> = [{ type: 'text', text: `${String(lastUser?.text || '').slice(0, MAX_MESSAGE_CHARS)}${parsedText ? `\\n${parsedText}` : ''}${safeAttachments.some((file) => file.type.startsWith('image/')) ? '\\nThe image is attached as actual image data. Inspect it directly and answer the user using only visible evidence.' : ''}` }]
     for (const file of safeAttachments) {
       if (file.type.startsWith('image/')) userContent.push({ type: 'image_url', image_url: { url: file.data } })
     }
@@ -185,8 +185,8 @@ export async function POST(request: Request) {
       const hasImage = safeAttachments.some((file) => file.type.startsWith('image/'))
       const hasPdf = safeAttachments.some((file) => file.type === 'application/pdf')
       const hasAudio = safeAttachments.some((file) => file.type.startsWith('audio/'))
-      const fallback = hasImage
-        ? 'তুই কোনো চিত্র দিচ্ছিস না। ছবিটি সংযুক্ত করে আবার প্রশ্নটি পাঠা।'
+      const fallback = safeAttachments.length > 0
+        ? `ফাইলটি সংযুক্ত হয়েছে, কিন্তু বিশ্লেষণ মডেল এখন উত্তর দেয়নি। ফাইলটি আবার পাঠানোর দরকার নেই—কিছুক্ষণ পরে একই প্রশ্নে আবার চেষ্টা করো।`
         : hasPdf
           ? 'তুই কোনো PDF দিচ্ছিস না। PDF ফাইলটি সংযুক্ত করে আবার প্রশ্নটি পাঠা।'
           : hasAudio
