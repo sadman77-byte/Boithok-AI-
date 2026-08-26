@@ -180,12 +180,19 @@ export async function POST(request: Request) {
       const latest = String(recentMessages[recentMessages.length - 1]?.text || '').trim()
       const isBengali = /[\u0980-\u09ff]/.test(latest)
       const isGreeting = /^(হাই|হ্যালো|আসসালামু আলাইকুম|কেমন আছিস|কেমন আছো|কেমন আছেন|hi|hello|hey)\b/i.test(latest)
-      const fallback = safeAttachments.length > 0
-        ? `ফাইলটি সংযুক্ত হয়েছে, কিন্তু বিশ্লেষণ service থেকে উত্তর আসেনি। ফাইলটি ঠিকভাবে পাঠানো হয়েছে—প্রশ্নটি আবার পাঠানোর আগে attachment সরানোর দরকার নেই।`
-        : isBengali
-          ? isGreeting
-            ? 'ভালো আছি রে। তুই কেমন আছিস? কী নিয়ে কথা বলবি?'
-            : `তোর কথাটা পেয়েছি: “${latest}”। এই মুহূর্তে বাইরের মডেলগুলো সাড়া দিচ্ছে না। একটু পর আবার চেষ্টা করো।`
+      const hasImage = safeAttachments.some((file) => file.type.startsWith('image/'))
+      const hasPdf = safeAttachments.some((file) => file.type === 'application/pdf')
+      const hasAudio = safeAttachments.some((file) => file.type.startsWith('audio/'))
+      const fallback = hasImage
+        ? 'তুই কোনো চিত্র দিচ্ছিস না। ছবিটি সংযুক্ত করে আবার প্রশ্নটি পাঠা।'
+        : hasPdf
+          ? 'তুই কোনো PDF দিচ্ছিস না। PDF ফাইলটি সংযুক্ত করে আবার প্রশ্নটি পাঠা।'
+          : hasAudio
+            ? 'তুই কোনো অডিও দিচ্ছিস না। অডিও ফাইলটি সংযুক্ত করে আবার প্রশ্নটি পাঠা।'
+            : isBengali
+              ? isGreeting
+                ? 'ভালো আছি রে। তুই কেমন আছিস? কী নিয়ে কথা বলবি?'
+                : `তোর কথাটা পেয়েছি: “${latest}”। এই মুহূর্তে বাইরের মডেলগুলো সাড়া দিচ্ছে না। একটু পর আবার চেষ্টা করো।`
         : isGreeting
           ? 'I’m doing well. What would you like to work on?'
           : `I received your message: “${latest}”. The external models are not responding right now, so I won’t invent an answer. Please try again shortly.`
