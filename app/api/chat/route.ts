@@ -36,6 +36,12 @@ type ChatMessage = { role: 'system' | 'assistant'; content: string } | { role: '
 type Attachment = { name: string; type: string; data: string }
 type ProviderResult = { text: string; provider: string }
 
+async function readJsonResponse(response: Response): Promise<Record<string, any>> {
+  const raw = await response.text()
+  if (!raw.trim()) return { _error: 'empty-response' }
+  try { return JSON.parse(raw) } catch { return { _error: raw.slice(0, 500) } }
+}
+
 function decodeDataUrl(data: string) {
   const match = data.match(/^data:([^;]+);base64,(.+)$/s)
   if (!match) throw new Error('attachment:invalid-data-url')
@@ -58,7 +64,7 @@ async function parseAttachment(file: Attachment) {
       method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': file.type },
       body: decoded.buffer, signal: AbortSignal.timeout(TIMEOUT_MS),
     })
-    const result = await response.json()
+    const result = await readJsonResponse(response)
     if (!response.ok || typeof result?.text !== 'string') throw new Error(`audio-transcription:${response.status}`)
     return `[Audio transcription: ${file.name}]\\n${result.text.slice(0, 20000)}`
   }
@@ -79,7 +85,7 @@ async function openRouterChat(messages: ChatMessage[]): Promise<ProviderResult> 
     body: JSON.stringify({ model, temperature: 0.7, max_tokens: 1200, messages, ...(hasImage ? { modalities: ['text', 'image'] } : {}) }),
     signal: AbortSignal.timeout(TIMEOUT_MS),
   })
-  const data = await response.json()
+  const data = await readJsonResponse(response)
   const text = data?.choices?.[0]?.message?.content
   if (!response.ok || typeof text !== 'string' || !text.trim()) throw new Error(`openrouter:${response.status}:${data?.error?.message || 'empty-response'}`)
   return { text: text.trim(), provider: 'OpenRouter Free' }
@@ -91,7 +97,7 @@ async function pollinationsChat(messages: ChatMessage[]): Promise<ProviderResult
     body: JSON.stringify({ model: 'openai', temperature: 0.7, max_tokens: 1200, messages }),
     signal: AbortSignal.timeout(TIMEOUT_MS),
   })
-  const data = await response.json()
+  const data = await readJsonResponse(response)
   const text = data?.choices?.[0]?.message?.content
   if (!response.ok || typeof text !== 'string' || !text.trim()) throw new Error(`pollinations-gen:${response.status}`)
   return { text: text.trim(), provider: 'Pollinations' }
@@ -125,7 +131,7 @@ async function huggingFaceChat(messages: ChatMessage[]): Promise<ProviderResult>
       body: JSON.stringify({ model, temperature: 0.7, max_tokens: 1200, messages }),
       signal: AbortSignal.timeout(TIMEOUT_MS),
     })
-    const data = await response.json()
+    const data = await readJsonResponse(response)
     const text = data?.choices?.[0]?.message?.content
     if (response.ok && typeof text === 'string' && text.trim()) return { text: text.trim(), provider: `Hugging Face · ${model.split('/').pop()}` }
     lastError = `${response.status}:${data?.error?.message || 'empty-response'}`
@@ -156,10 +162,12 @@ export async function POST(request: Request) {
       ? [...baseMessages, { role: 'user' as const, content: hasImageAttachment ? userContent : `${userContent[0].text || ''}` }]
       : baseMessages
 
-    // Use vision models for images; use text models for parsed PDF/audio content.
-    const providers = hasImageAttachment
-      ? [openRouterChat, ...(process.env.HF_TOKEN ? [huggingFaceChat] : [])]
-      : [openRouterChat, pollinationsChat, pollinationsFree, ...(process.env.HF_TOKEN ? [huggingFaceChat] : [])]
+    // Run OpenRouter and Hugging Face concurrently; first valid response wins.
+    const providers = [
+      openRouterChat,
+      ...(process.env.HF_TOKEN ? [huggingFaceChat] : []),
+      ...(hasImageAttachment ? [] : [pollinationsChat, pollinationsFree]),
+    ]
 
     try {
       const result = await Promise.race([
