@@ -72,9 +72,11 @@ async function parseAttachment(file: Attachment) {
 }
 
 async function openRouterChat(messages: ChatMessage[]): Promise<ProviderResult> {
-  const secret = process.env.SECRET_2
-  const host = process.env.HOST_2
-  if (!secret || !host) throw new Error('openrouter:missing-config')
+  const configuredSecret = process.env.SECRET_2
+  const configuredHost = process.env.HOST_2
+  const secret = configuredSecret && !configuredSecret.startsWith('process.env.') && configuredSecret !== 'secret' ? configuredSecret : ''
+  const host = configuredHost && !configuredHost.startsWith('process.env.') && configuredHost !== 'localhost' ? configuredHost : 'https://openrouter.ai'
+  if (!secret) throw new Error('openrouter:missing-api-key')
   const base = /^https?:\/\//i.test(host) ? host.replace(/\/$/, '') : `https://${host}`
   const endpoint = /\/api\/v1$/i.test(base) ? `${base}/chat/completions` : `${base}/api/v1/chat/completions`
   const hasImage = messages.some((message) => Array.isArray(message.content) && message.content.some((part) => part.type === 'image_url'))
@@ -82,7 +84,7 @@ async function openRouterChat(messages: ChatMessage[]): Promise<ProviderResult> 
   const response = await fetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${secret}`, 'HTTP-Referer': 'https://boithok-ai.vercel.app', 'X-Title': 'Boithok AI' },
-    body: JSON.stringify({ model, temperature: 0.7, max_tokens: 1200, messages, ...(hasImage ? { modalities: ['text', 'image'] } : {}) }),
+    body: JSON.stringify({ model, temperature: 0.7, max_tokens: 1200, messages }),
     signal: AbortSignal.timeout(TIMEOUT_MS),
   })
   const data = await readJsonResponse(response)
@@ -149,7 +151,7 @@ export async function POST(request: Request) {
     const safeAttachments = Array.isArray(attachments) ? attachments.filter((file) => typeof file?.data === 'string' && file.data.length < 12_000_000).slice(0, 3) : []
     const parsedText = (await Promise.all(safeAttachments.map(async (file) => { try { return await parseAttachment(file) } catch (error) { console.warn('[v0] Attachment parsing failed:', file.name, error); return `[${file.name}] Could not be parsed.` } }))).filter(Boolean).join('\\n\\n')
     const lastUser = recentMessages.findLast((message) => message.role === 'user')
-    const userContent: Array<{ type: 'text' | 'image_url'; text?: string; image_url?: { url: string } }> = [{ type: 'text', text: `${String(lastUser?.text || '').slice(0, MAX_MESSAGE_CHARS)}\\n${parsedText}\\nYou have the actual attached image. Inspect its visual content carefully, describe only what is visible, and answer the user's question. Do not claim the file is unavailable unless every vision model fails.` }]
+    const userContent: Array<{ type: 'text' | 'image_url'; text?: string; image_url?: { url: string } }> = [{ type: 'text', text: `${String(lastUser?.text || '').slice(0, MAX_MESSAGE_CHARS)}\\n${parsedText}\\nInspect the attached image directly and answer from its visible content.` }]
     for (const file of safeAttachments) {
       if (file.type.startsWith('image/')) userContent.push({ type: 'image_url', image_url: { url: file.data } })
     }
@@ -200,6 +202,6 @@ export async function POST(request: Request) {
     }
   } catch (error) {
     console.error('[v0] Provider router failed:', error)
-    return NextResponse.json({ error: 'অনুরোধটি সম্পন্ন করা যাচ্ছে না। আবার চেষ্টা করুন।' }, { status: 503 })
+    return NextResponse.json({ error: 'অনুরোধটি সম্পন্ন করা যাচ্ছে না। আবার চেষ��টা করুন।' }, { status: 503 })
   }
 }
