@@ -144,7 +144,11 @@ async function huggingFaceChat(messages: ChatMessage[]): Promise<ProviderResult>
 
 export async function POST(request: Request) {
   try {
-    const { messages, assistant, attachments = [] } = await request.json() as { messages: Array<{ role: 'user' | 'assistant'; text: string }>; assistant?: string; attachments?: Attachment[] }
+    const rawBody = await request.text()
+    if (!rawBody.trim()) return NextResponse.json({ error: 'Empty request body.' }, { status: 400 })
+    let body: { messages?: Array<{ role: 'user' | 'assistant'; text: string }>; assistant?: string; attachments?: Attachment[] }
+    try { body = JSON.parse(rawBody) } catch { return NextResponse.json({ error: 'Invalid request JSON.' }, { status: 400 }) }
+    const { messages, assistant, attachments = [] } = body
     if (!Array.isArray(messages) || messages.length === 0) return NextResponse.json({ error: 'A message is required.' }, { status: 400 })
 
     const recentMessages = messages.slice(-MAX_CONTEXT_MESSAGES)
