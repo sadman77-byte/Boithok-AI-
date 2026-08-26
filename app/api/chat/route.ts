@@ -152,8 +152,11 @@ export async function POST(request: Request) {
     if (!Array.isArray(messages) || messages.length === 0) return NextResponse.json({ error: 'A message is required.' }, { status: 400 })
 
     const recentMessages = messages.slice(-MAX_CONTEXT_MESSAGES)
-    const safeAttachments = Array.isArray(attachments) ? attachments.filter((file) => typeof file?.data === 'string' && file.data.length < 12_000_000).slice(0, 3) : []
-    const parsedText = (await Promise.all(safeAttachments.map(async (file) => { try { return await parseAttachment(file) } catch (error) { console.warn('[v0] Attachment parsing failed:', file.name, error); return `[${file.name}] Could not be parsed.` } }))).filter(Boolean).join('\\n\\n')
+    const safeAttachments = (Array.isArray(attachments) ? attachments : []).filter((file) => typeof file?.data === 'string' && file.data.length < 12_000_000).slice(0, 3).map((file) => {
+      const detectedType = file.type || file.data.match(/^data:([^;]+);/)?.[1] || 'application/octet-stream'
+      return { ...file, type: detectedType }
+    })
+    const parsedText = (await Promise.all(safeAttachments.map(async (file) => { try { return await parseAttachment(file) } catch (error) { console.warn('[v0] Attachment parsing failed:', file.name, error); return `[${file.name}] Parsing failed: ${error instanceof Error ? error.message : 'unsupported file'}` } }))).filter(Boolean).join('\\n\\n')
     const lastUser = recentMessages.findLast((message) => message.role === 'user')
     const userContent: Array<{ type: 'text' | 'image_url'; text?: string; image_url?: { url: string } }> = [{ type: 'text', text: `${String(lastUser?.text || '').slice(0, MAX_MESSAGE_CHARS)}${parsedText ? `\\n${parsedText}` : ''}${safeAttachments.some((file) => file.type.startsWith('image/')) ? '\\nThe image is attached as actual image data. Inspect it directly and answer the user using only visible evidence.' : ''}` }]
     for (const file of safeAttachments) {
@@ -190,7 +193,7 @@ export async function POST(request: Request) {
       const hasPdf = safeAttachments.some((file) => file.type === 'application/pdf')
       const hasAudio = safeAttachments.some((file) => file.type.startsWith('audio/'))
       const fallback = safeAttachments.length > 0
-        ? `ফাইলটি সংযুক্ত হয়েছে, কিন্তু বিশ্লেষণ মডেল এখন উত্তর দেয়নি। ফাইলটি আবার পাঠানোর দরকার নেই—কিছুক্ষণ পরে একই প্রশ্নে আবার চেষ্টা করো।`
+        ? `তোর ফাইলটি সংযুক্ত হয়েছে, কিন্তু বিশ্লেষণ মডেল থেকে নির্ভরযোগ্য উত্তর পাওয়া যায়নি। ফাইলটি আবার পাঠানোর দরকার নেই; কিছুক্ষণ পরে একই প্রশ্নে আবার চেষ্টা করো।`
         : hasPdf
           ? 'তুই কোনো PDF দিচ্ছিস না। PDF ফাইলটি সংযুক্ত করে আবার প্রশ্নটি পাঠা।'
           : hasAudio
@@ -198,7 +201,7 @@ export async function POST(request: Request) {
             : isBengali
               ? isGreeting
                 ? 'ভালো আছি রে। তুই কেমন আছিস? কী নিয়ে কথা বলবি?'
-                : `তোর কথাটা পেয়েছি: “${latest}”। এই মুহূর্তে বাইরের মডেলগুলো সাড়া দিচ্ছে না। একটু পর আবার চেষ্টা করো।`
+                : `তোর কথাটা পেয়েছি: “${latest}”। এই মুহূর্তে বাইরের মডেলগুলো সাড়��� দিচ্ছে না। একটু পর আবার চেষ্টা করো।`
         : isGreeting
           ? 'I’m doing well. What would you like to work on?'
           : `I received your message: “${latest}”. The external models are not responding right now, so I won’t invent an answer. Please try again shortly.`
