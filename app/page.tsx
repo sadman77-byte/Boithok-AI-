@@ -72,6 +72,8 @@ export default function Page() {
   const [translated, setTranslated] = useState(false)
   const [chatLoading, setChatLoading] = useState(false)
   const [provider, setProvider] = useState('Public-first AI')
+  const [mcpOpen, setMcpOpen] = useState(false)
+  const [mcpUrls, setMcpUrls] = useState({ openrouter: '', huggingface: '', higgsfield: '' })
 
   const filtered = useMemo(() => assistants.filter(([name, desc]) => `${name} ${desc}`.toLowerCase().includes(query.toLowerCase())), [query])
 
@@ -147,7 +149,7 @@ export default function Page() {
             <span><strong>{assistants[selected][0]}</strong><small>Free assistant</small></span>
             <ChevronDown />
           </button>
-          <div className="top-actions"><span className="provider-status" title="Public-first routing">{provider}</span><button className="icon-button" aria-label="Menu"><Menu /></button><button className="icon-button" aria-label="Toggle panel"><PanelRight /></button></div>
+          <div className="top-actions"><span className="provider-status" title="Public-first routing">{provider}</span><button className="icon-button" aria-label="MCP server links" aria-expanded={mcpOpen} onClick={() => setMcpOpen((value) => !value)}><Menu /></button><button className="icon-button" aria-label="Toggle panel"><PanelRight /></button></div>{mcpOpen && <div className="mcp-popover"><div className="picker-heading"><div><strong>MCP server links</strong><small>Paste official HTTPS endpoints</small></div><button className="icon-button" onClick={() => setMcpOpen(false)} aria-label="Close MCP settings"><X /></button></div><label className="mcp-field">OpenRouter<input type="url" placeholder="https://..." value={mcpUrls.openrouter} onChange={(event) => setMcpUrls((current) => ({ ...current, openrouter: event.target.value }))} /></label><label className="mcp-field">Hugging Face<input type="url" placeholder="https://..." value={mcpUrls.huggingface} onChange={(event) => setMcpUrls((current) => ({ ...current, huggingface: event.target.value }))} /></label><label className="mcp-field">Higgsfield AI<input type="url" placeholder="https://..." value={mcpUrls.higgsfield} onChange={(event) => setMcpUrls((current) => ({ ...current, higgsfield: event.target.value }))} /></label><button className="primary-button mcp-save" onClick={() => setMcpOpen(false)}>Save links<Check /></button></div>}
           {pickerOpen && <div className="picker-popover">
             <div className="picker-heading"><div><strong>Choose an assistant</strong><small>30 free assistants · one active model</small></div><button className="icon-button" onClick={() => setPickerOpen(false)} aria-label="Close"><X /></button></div>
             <label className="search-box"><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search assistants" /></label>
