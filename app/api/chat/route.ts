@@ -1,6 +1,4 @@
 import { NextResponse } from 'next/server'
-import { PDFParse } from 'pdf-parse'
-
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -55,6 +53,7 @@ function decodeDataUrl(data: string) {
 async function parseAttachment(file: Attachment) {
   const decoded = decodeDataUrl(file.data)
   if (file.type === 'application/pdf' || decoded.type === 'application/pdf') {
+    const { PDFParse } = await import('pdf-parse')
     const parser = new PDFParse({ data: decoded.buffer })
     try {
       const result = await parser.getText()
