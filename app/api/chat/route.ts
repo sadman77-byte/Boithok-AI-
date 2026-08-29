@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server'
 import { PDFParse } from 'pdf-parse'
 
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+export const maxDuration = 60
+
 function banglaDate(date: Date) {
   // Bangladesh civil Bangla calendar: 1 Boishakh is 14 April; months 1–6 are 31 days, months 7–12 are 30 days, with Falgun 31 in leap years.
   const year = date.getUTCFullYear() - (date.getUTCMonth() < 3 || (date.getUTCMonth() === 3 && date.getUTCDate() < 14) ? 594 : 593)
@@ -150,6 +154,7 @@ export async function POST(request: Request) {
     try { body = JSON.parse(rawBody) } catch { return NextResponse.json({ error: 'Invalid request JSON.' }, { status: 400 }) }
     const { messages, assistant, attachments = [] } = body
     if (!Array.isArray(messages) || messages.length === 0) return NextResponse.json({ error: 'A message is required.' }, { status: 400 })
+    if (rawBody.length > 6_000_000) return NextResponse.json({ error: 'The request is too large. Keep attachments within the upload limits.' }, { status: 413 })
 
     const recentMessages = messages.slice(-MAX_CONTEXT_MESSAGES)
     const safeAttachments = (Array.isArray(attachments) ? attachments : []).filter((file) => typeof file?.data === 'string' && file.data.length < 12_000_000).slice(0, 3).map((file) => {
