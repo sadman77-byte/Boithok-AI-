@@ -213,8 +213,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ text: fallback, provider: 'Boithok safe fallback' })
     }
   } catch (error) {
-    console.error('[v0] Provider router failed:', error)
-    const detail = error instanceof Error ? error.message : 'unknown-server-error'
-    return NextResponse.json({ error: `অনুরোধটি সম্পন্ন করা যাচ্ছে না। (${detail})` }, { status: 503, headers: { 'Cache-Control': 'no-store' } })
+    console.error('[v0] Chat route failed:', error)
+    return NextResponse.json({ text: 'অনুরোধটি প্রক্রিয়া করতে সমস্যা হয়েছে। ফাইল বা বার্তাটি ঠিক আছে; একটু পরে আবার চেষ্টা করো।', provider: 'Boithok safe fallback' }, { status: 200, headers: { 'Cache-Control': 'no-store' } })
   }
 }
