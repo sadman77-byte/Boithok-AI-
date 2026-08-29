@@ -76,10 +76,10 @@ async function parseAttachment(file: Attachment) {
 }
 
 async function openRouterChat(messages: ChatMessage[]): Promise<ProviderResult> {
-  const configuredSecret = process.env.SECRET_2
-  const configuredHost = process.env.HOST_2
+  const configuredSecret = process.env.SECRET_2 || process.env.SECRET
+  const configuredHost = process.env.HOST_2 || process.env.HOST
   const secret = configuredSecret && !configuredSecret.startsWith('process.env.') && configuredSecret !== 'secret' ? configuredSecret : ''
-  const host = configuredHost && !configuredHost.startsWith('process.env.') && configuredHost !== 'localhost' ? configuredHost : 'https://openrouter.ai'
+  const host = configuredHost && !configuredHost.startsWith('process.env.') && configuredHost !== 'localhost' && configuredHost !== '80' ? configuredHost : 'https://openrouter.ai'
   if (!secret) throw new Error('openrouter:missing-api-key')
   const base = /^https?:\/\//i.test(host) ? host.replace(/\/$/, '') : `https://${host}`
   const endpoint = /\/api\/v1$/i.test(base) ? `${base}/chat/completions` : `${base}/api/v1/chat/completions`
@@ -214,6 +214,7 @@ export async function POST(request: Request) {
     }
   } catch (error) {
     console.error('[v0] Provider router failed:', error)
-    return NextResponse.json({ error: 'অনুরোধটি সম্পন্ন করা যাচ্ছে না। আবার চেষ��টা করুন।' }, { status: 503 })
+    const detail = error instanceof Error ? error.message : 'unknown-server-error'
+    return NextResponse.json({ error: `অনুরোধটি সম্পন্ন করা যাচ্ছে না। (${detail})` }, { status: 503 })
   }
 }
