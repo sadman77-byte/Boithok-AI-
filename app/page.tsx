@@ -111,7 +111,7 @@ export default function Page() {
       })
       const raw = await response.text()
       let data: { text?: string; provider?: string; error?: string }
-      try { data = raw.trim() ? JSON.parse(raw) : {} } catch { throw new Error('সার্ভার খালি বা ভুল response পাঠিয়েছে। একটু পরে আবার চেষ্টা করো।') }
+      try { data = raw.trim() ? JSON.parse(raw) : {} } catch { throw new Error(`সার্ভার সঠিক response পাঠায়নি (${response.status})। আবার চেষ্টা করো।`) }
       if (!response.ok) throw new Error(data.error || `Request failed (${response.status})`)
       setProvider(data.provider || 'Public-first AI')
       setMessages((current) => [...current, { role: 'assistant', text: data.text }])

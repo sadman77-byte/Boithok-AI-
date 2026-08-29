@@ -215,6 +215,6 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('[v0] Provider router failed:', error)
     const detail = error instanceof Error ? error.message : 'unknown-server-error'
-    return NextResponse.json({ error: `অনুরোধটি সম্পন্ন করা যাচ্ছে না। (${detail})` }, { status: 503 })
+    return NextResponse.json({ error: `অনুরোধটি সম্পন্ন করা যাচ্ছে না। (${detail})` }, { status: 503, headers: { 'Cache-Control': 'no-store' } })
   }
 }
