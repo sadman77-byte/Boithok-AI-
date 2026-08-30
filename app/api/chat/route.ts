@@ -56,9 +56,9 @@ async function parseAttachment(file: Attachment) {
     const { PDFParse } = await import('pdf-parse')
     const parser = new PDFParse({ data: decoded.buffer })
     try {
-      const result = await parser.getText({ first: 1, last: 1000 })
-      const text = result.text.replace(/\\s+/g, ' ').trim()
-      return text ? `[PDF: ${file.name}]\\n${text.slice(0, 24000)}` : `[PDF: ${file.name}] This PDF has no selectable text; inspect its pages as an image if visual analysis is supported.`
+      const result = await parser.getText()
+      const text = result.text.replace(/\s+/g, ' ').trim()
+      return text ? `[PDF: ${file.name}]\n${text.slice(0, 24000)}` : `[PDF: ${file.name}] This PDF has no selectable text.`
     } finally { await parser.destroy() }
   }
   if (file.type.startsWith('audio/') || decoded.type.startsWith('audio/')) {
@@ -146,6 +146,10 @@ async function huggingFaceChat(messages: ChatMessage[]): Promise<ProviderResult>
   throw new Error(`huggingface:${lastError}`)
 }
 
+export function GET() {
+  return NextResponse.json({ ok: true, route: 'chat' }, { headers: { 'Cache-Control': 'no-store' } })
+}
+
 export async function POST(request: Request) {
   try {
     const rawBody = await request.text()
@@ -154,7 +158,7 @@ export async function POST(request: Request) {
     try { body = JSON.parse(rawBody) } catch { return NextResponse.json({ error: 'Invalid request JSON.' }, { status: 400 }) }
     const { messages, assistant, attachments = [] } = body
     if (!Array.isArray(messages) || messages.length === 0) return NextResponse.json({ error: 'A message is required.' }, { status: 400 })
-    if (rawBody.length > 6_000_000) return NextResponse.json({ error: 'The request is too large. Keep attachments within the upload limits.' }, { status: 413 })
+    if (rawBody.length > 6_000_000) return NextResponse.json({ text: 'ফাইলটি ৬ MB-এর বেশি হয়ে গেছে। ছোট ফাইল দিয়ে আবার চেষ্টা করো।', provider: 'Boithok validation' }, { status: 200 })
 
     const recentMessages = messages.slice(-MAX_CONTEXT_MESSAGES)
     const safeAttachments = (Array.isArray(attachments) ? attachments : []).filter((file) => typeof file?.data === 'string' && file.data.length < 12_000_000).slice(0, 3).map((file) => {
