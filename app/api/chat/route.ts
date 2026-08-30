@@ -53,7 +53,7 @@ function decodeDataUrl(data: string) {
 async function parseAttachment(file: Attachment) {
   const decoded = decodeDataUrl(file.data)
   if (file.type === 'application/pdf' || decoded.type === 'application/pdf') {
-    const { PDFParse } = await import('pdf-parse/node')
+    const { PDFParse } = await import('pdf-parse')
     const parser = new PDFParse({ data: decoded.buffer })
     try {
       const result = await parser.getText()
@@ -202,7 +202,7 @@ export async function POST(request: Request) {
       const hasPdf = safeAttachments.some((file) => file.type === 'application/pdf')
       const hasAudio = safeAttachments.some((file) => file.type.startsWith('audio/'))
       const fallback = safeAttachments.length > 0
-        ? 'ফাইলটি সংযুক্ত হয়েছে, কিন্তু এই মুহূর্তে বিশ্লেষণ মডেল উত্তর দিতে পারেন���। ফাইলটি আবার পাঠানোর দরকার নেই।'
+        ? 'ফাইলটি সংযুক্ত হয়েছে, কিন্তু এই মুহূর্তে বিশ্লেষণ মডে�� উত্তর দিতে পারেন���। ফাইলটি আবার পাঠানোর দরকার নেই।'
         : isBengali
           ? isGreeting
             ? 'ভালো আছি রে। তুই কেমন আছিস? কী নিয়ে কথা বলবি?'
