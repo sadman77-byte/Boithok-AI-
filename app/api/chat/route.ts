@@ -53,12 +53,12 @@ function decodeDataUrl(data: string) {
 async function parseAttachment(file: Attachment) {
   const decoded = decodeDataUrl(file.data)
   if (file.type === 'application/pdf' || decoded.type === 'application/pdf') {
-    const { PDFParse } = await import('pdf-parse')
+    const { PDFParse } = await import('pdf-parse/node')
     const parser = new PDFParse({ data: decoded.buffer })
     try {
       const result = await parser.getText()
       const text = result.text.replace(/\s+/g, ' ').trim()
-      return text ? `[PDF: ${file.name}]\n${text.slice(0, 24000)}` : `[PDF: ${file.name}] This PDF has no selectable text.`
+      return text ? `[PDF CONTENT — ${file.name}]\\n${text.slice(0, 24000)}\\n[END PDF CONTENT]` : `[PDF: ${file.name}] This PDF has no selectable text.`
     } finally { await parser.destroy() }
   }
   if (file.type.startsWith('audio/') || decoded.type.startsWith('audio/')) {
@@ -165,7 +165,7 @@ export async function POST(request: Request) {
       const detectedType = file.type || file.data.match(/^data:([^;]+);/)?.[1] || 'application/octet-stream'
       return { ...file, type: detectedType }
     })
-    const parsedText = (await Promise.all(safeAttachments.map(async (file) => { try { return await parseAttachment(file) } catch (error) { console.warn('[v0] Attachment parsing failed:', file.name, error); return `[${file.name}] Parsing failed: ${error instanceof Error ? error.message : 'unsupported file'}` } }))).filter(Boolean).join('\\n\\n')
+    const parsedText = (await Promise.all(safeAttachments.map(async (file) => { try { return await parseAttachment(file) } catch (error) { console.warn('[v0] Attachment parsing failed:', file.name, error); return `[${file.name}] PDF extraction failed: ${error instanceof Error ? error.message : 'unsupported file'}` } }))).filter(Boolean).join('\\n\\n')
     const lastUser = recentMessages.findLast((message) => message.role === 'user')
     const userContent: Array<{ type: 'text' | 'image_url'; text?: string; image_url?: { url: string } }> = [{ type: 'text', text: `${String(lastUser?.text || '').slice(0, MAX_MESSAGE_CHARS)}${parsedText ? `\\n${parsedText}` : ''}${safeAttachments.some((file) => file.type.startsWith('image/')) ? '\\nThe image is attached as actual image data. Inspect it directly and answer the user using only visible evidence.' : ''}` }]
     for (const file of safeAttachments) {
@@ -202,7 +202,7 @@ export async function POST(request: Request) {
       const hasPdf = safeAttachments.some((file) => file.type === 'application/pdf')
       const hasAudio = safeAttachments.some((file) => file.type.startsWith('audio/'))
       const fallback = safeAttachments.length > 0
-        ? 'ফাইলটি সংযুক্ত হয়েছে, কিন্তু এই মুহূর্তে বিশ্লেষণ মডেল উত্তর দিতে পারেনি। ফাইলটি আবার পাঠানোর দরকার নেই।'
+        ? 'ফাইলটি সংযুক্ত হয়েছে, কিন্তু এই মুহূর্তে বিশ্লেষণ মডেল উত্তর দিতে পারেন���। ফাইলটি আবার পাঠানোর দরকার নেই।'
         : isBengali
           ? isGreeting
             ? 'ভালো আছি রে। তুই কেমন আছিস? কী নিয়ে কথা বলবি?'
