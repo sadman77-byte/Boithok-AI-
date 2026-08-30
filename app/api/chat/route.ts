@@ -198,18 +198,14 @@ export async function POST(request: Request) {
       const hasPdf = safeAttachments.some((file) => file.type === 'application/pdf')
       const hasAudio = safeAttachments.some((file) => file.type.startsWith('audio/'))
       const fallback = safeAttachments.length > 0
-        ? `তোর ফাইলটি সংযুক্ত হয়েছে, কিন্তু বিশ্লেষণ মডেল থেকে নির্ভরযোগ্য উত্তর পাওয়া যায়নি। ফাইলটি আবার পাঠানোর দরকার নেই; কিছুক্ষণ পরে একই প্রশ্নে আবার চেষ্টা করো।`
-        : hasPdf
-          ? 'তুই কোনো PDF দিচ্ছিস না। PDF ফাইলটি সংযুক্ত ক���ে আবার প্রশ্নটি পাঠা।'
-          : hasAudio
-            ? 'তুই কোনো অডিও দিচ্ছিস না। অডিও ফাইলটি সংযুক্ত করে আবার প্রশ্নটি পাঠা।'
-            : isBengali
-              ? isGreeting
-                ? 'ভালো আছি রে। তুই কেমন আছিস? কী নিয়ে কথা বলবি?'
-                : `তোর কথাটা পেয়েছি: “${latest}”। এই মুহূর্তে বাইরের মডেলগুলো সাড়��� দিচ্ছে না। একটু পর আবার চেষ্টা করো।`
-        : isGreeting
-          ? 'I’m doing well. What would you like to work on?'
-          : `I received your message: “${latest}”. The external models are not responding right now, so I won’t invent an answer. Please try again shortly.`
+        ? 'ফাইলটি সংযুক্ত হয়েছে, কিন্তু এই মুহূর্তে বিশ্লেষণ মডেল উত্তর দিতে পারেনি। ফাইলটি আবার পাঠানোর দরকার নেই।'
+        : isBengali
+          ? isGreeting
+            ? 'ভালো আছি রে। তুই কেমন আছিস? কী নিয়ে কথা বলবি?'
+            : `তোর কথাটা পেয়েছি: “${latest}”। এই মুহূর্তে বাইরের মডেলগুলো সাড়া দিচ্ছে না। একটু পর আবার চেষ্টা করো।`
+          : isGreeting
+            ? 'I’m doing well. What would you like to work on?'
+            : `I received your message: “${latest}”. The external models are not responding right now, so I won’t invent an answer. Please try again shortly.`
       return NextResponse.json({ text: fallback, provider: 'Boithok safe fallback' })
     }
   } catch (error) {
