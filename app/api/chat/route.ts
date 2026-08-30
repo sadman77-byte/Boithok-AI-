@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
-export const maxDuration = 60
+export const maxDuration = 120
 
 function banglaDate(date: Date) {
   // Bangladesh civil Bangla calendar: 1 Boishakh is 14 April; months 1–6 are 31 days, months 7–12 are 30 days, with Falgun 31 in leap years.
@@ -56,8 +56,9 @@ async function parseAttachment(file: Attachment) {
     const { PDFParse } = await import('pdf-parse')
     const parser = new PDFParse({ data: decoded.buffer })
     try {
-      const result = await parser.getText()
-      return `[PDF: ${file.name}]\\n${result.text.slice(0, 30000)}`
+      const result = await parser.getText({ first: 1, last: 1000 })
+      const text = result.text.replace(/\\s+/g, ' ').trim()
+      return text ? `[PDF: ${file.name}]\\n${text.slice(0, 24000)}` : `[PDF: ${file.name}] This PDF has no selectable text; inspect its pages as an image if visual analysis is supported.`
     } finally { await parser.destroy() }
   }
   if (file.type.startsWith('audio/') || decoded.type.startsWith('audio/')) {
@@ -199,7 +200,7 @@ export async function POST(request: Request) {
       const fallback = safeAttachments.length > 0
         ? `তোর ফাইলটি সংযুক্ত হয়েছে, কিন্তু বিশ্লেষণ মডেল থেকে নির্ভরযোগ্য উত্তর পাওয়া যায়নি। ফাইলটি আবার পাঠানোর দরকার নেই; কিছুক্ষণ পরে একই প্রশ্নে আবার চেষ্টা করো।`
         : hasPdf
-          ? 'তুই কোনো PDF দিচ্ছিস না। PDF ফাইলটি সংযুক্ত করে আবার প্রশ্নটি পাঠা।'
+          ? 'তুই কোনো PDF দিচ্ছিস না। PDF ফাইলটি সংযুক্ত ক���ে আবার প্রশ্নটি পাঠা।'
           : hasAudio
             ? 'তুই কোনো অডিও দিচ্ছিস না। অডিও ফাইলটি সংযুক্ত করে আবার প্রশ্নটি পাঠা।'
             : isBengali

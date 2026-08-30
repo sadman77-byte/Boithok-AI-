@@ -100,7 +100,7 @@ export default function Page() {
     setChatLoading(true)
 
     const controller = new AbortController()
-    const timeout = window.setTimeout(() => controller.abort(), 28000)
+    const timeout = window.setTimeout(() => controller.abort(), attachments.some((file) => file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) ? 90000 : 28000)
 
     try {
       const response = await fetch('/api/chat', {
