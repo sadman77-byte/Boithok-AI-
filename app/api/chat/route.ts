@@ -53,8 +53,10 @@ function decodeDataUrl(data: string) {
 async function parseAttachment(file: Attachment) {
   const decoded = decodeDataUrl(file.data)
   if (file.type === 'application/pdf' || decoded.type === 'application/pdf') {
-    const { PDFParse } = await import('pdf-parse')
-    const parser = new PDFParse({ data: decoded.buffer })
+    const pdfModule = await import('pdf-parse') as any
+    const PDFParseCtor = pdfModule.PDFParse ?? pdfModule.default?.PDFParse ?? pdfModule.default
+    if (typeof PDFParseCtor !== 'function') throw new Error('pdf-parser-export-unavailable')
+    const parser = new PDFParseCtor({ data: decoded.buffer })
     try {
       const result = await parser.getText()
       const text = result.text.replace(/\s+/g, ' ').trim()
