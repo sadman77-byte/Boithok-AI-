@@ -5,7 +5,7 @@
 https://boithok-9b6mbvknk-sadman-ishraqs-projects-ed512a09.vercel.app/
 
 Alternative :
-https://preview--boithok-ai-hub.lovable.app/
+https://boithok-ai-hub.lovable.app
 
 # Boithok AI
 
