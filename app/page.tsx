@@ -103,12 +103,13 @@ export default function Page() {
     const timeout = window.setTimeout(() => controller.abort(), attachments.some((file) => file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) ? 90000 : 28000)
 
     try {
-      const response = await fetch('/api/chat', {
+      const streamChat = (payload: { messages: Message[]; assistant: string; attachments: typeof encodedAttachments }, signal: AbortSignal) => fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ messages: nextMessages, assistant: assistants[selected][0], attachments: encodedAttachments }),
-        signal: controller.signal,
+        body: JSON.stringify(payload),
+        signal,
       })
+      const response = await streamChat({ messages: nextMessages, assistant: assistants[selected][0], attachments: encodedAttachments }, controller.signal)
       const raw = await response.text()
       let data: { text?: string; provider?: string; error?: string }
       try { data = raw.trim() ? JSON.parse(raw) : {} } catch { throw new Error(`সার্ভার সঠিক response পাঠায়নি (${response.status})। আবার চেষ্টা করো।`) }
