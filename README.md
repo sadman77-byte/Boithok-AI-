@@ -1,33 +1,30 @@
 # Boithok-AI-
 বৈঠক এ আই is a multiple expertize chatbot in all-rounder combination style.
 
-1.
-https://boithok-9b6mbvknk-sadman-ishraqs-projects-ed512a09.vercel.app/
 
-Alternative :
 https://boithok-ai-hub.lovable.app
 
 # Boithok AI
 
-**Boithok AI** is an all-in-one platform providing access to 30 free AI models. It offers chat, full PDF translation, and image generation using Hugging Face and Pollinations AI via a streamlined interface deployed on Vercel.
+**Boithok AI** is an all-in-one platform providing access to 18 free AI models. It offers chat, full PDF translation, and image generation using Hugging Face and Weather AI via a streamlined interface deployed on Lovable.
 
 ---
 
 ## Features
 
-* **30 AI Assistants:** Access to multiple latest-generation models without overlap.
+* **18 AI Assistants:** Access to multiple latest-generation models without overlap.
 * **Unified Model Picker:** Clean and simple UI to switch models without visual clutter.
 * **Full PDF Translation:** Upload documents and translate full PDF files seamlessly.
 * **Image Generation:** Powered by Pollinations AI for high-speed, prompt-based image creation.
-* **Fast & Lightweight:** Built for Vercel deployment with low latency and quick response times.
+* **Fast & Lightweight:** Built for Lovable deployment with low latency and quick response times.
 
 ---
 
 ## Tech Stack
 
-* **Frontend/Backend Framework:** Vercel (Serverless Functions)
+* **Frontend/Backend Framework:** Lovable (With Server Functions)
 * **Model APIs:** Hugging Face Inference API
-* **Image Generation:** Pollinations AI API
+* **Image Generation:** Weather AI API
 * **Data & Crawling Tools:** Common Crawl / CCBot pipeline integrations
 
 ---
@@ -37,7 +34,7 @@ https://boithok-ai-hub.lovable.app
 ### Prerequisites
 
 * Node.js (v18 or higher)
-* A [Vercel](https://vercel.com/) account
+* A [Lovable](https://lovable.dev/) account
 * A [Hugging Face](https://huggingface.co/) API token
 
 ### Installation & Local Setup
@@ -77,19 +74,13 @@ npm run dev
 
 ## Deployment
 
-Deploy directly to Vercel:
+Deploy directly to Lovable:
 
 1. Push your repository to GitHub.
-2. Import the project into the [Vercel Dashboard](https://vercel.com/dashboard).
-3. Add `HUGGINGFACE_API_KEY` to the **Environment Variables** section in Vercel.
-4. Click **Deploy**.
+2. Import the project into the [Lovable dashboard](https://lovable.dev/dashboard).
+3. Add `HUGGINGFACE_API_KEY` to the **Environment Variables** section Lovable Click **Deploy**.
 5. Either you can use the above-mentioned link to chat with the Bengali experience.
    
-   <img width="1080" height="870" alt="1000127775" src="https://github.com/user-attachments/assets/489179cf-7893-4897-a3f5-c53a02085d28" />
-<img width="1080" height="2400" alt="1000127774" src="https://github.com/user-attachments/assets/83a52510-3ee5-414f-9b8a-00e3635048b1" />
-<img width="1080" height="2400" alt="1000127773" src="https://github.com/user-attachments/assets/b310c481-e6a0-422e-bec2-adf8b16b2a6e" />
-<img width="1080" height="2400" alt="1000127772" src="https://github.com/user-attachments/assets/24c36182-5836-449b-99a1-63eabfdf2910" />
-<img width="1080" height="604" alt="1000127771" src="https://github.com/user-attachments/assets/abe42dc3-59cf-4494-9517-ed56ef6e541c" />
 ---
 
 ## License
