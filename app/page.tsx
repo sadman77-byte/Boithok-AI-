@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 const books = [
   { id: 1, type: 'ফিকশন', title: 'পথের পাঁচালী', author: 'বিভূতিভূষণ বন্দ্যোপাধ্যায়', year: '১৯২৯', tag: 'ক্লাসিক', open: true, color: '#c98964', mark: 'প', description: 'অপু ও দুর্গার শৈশব, গ্রামবাংলার প্রকৃতি এবং একটি পরিবারের টিকে থাকার গল্প।', source: 'ইন্টারনেট আর্কাইভ / উন্মুক্ত সংস্করণ' },
@@ -32,6 +32,21 @@ export default function Home() {
   const [saved, setSaved] = useState<number[]>([])
   const [selectedBook, setSelectedBook] = useState<typeof books[number] | null>(null)
   const [reading, setReading] = useState(false)
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark')
+  const [readingProgress, setReadingProgress] = useState(0)
+  const readingRef = useRef<HTMLElement>(null)
+
+  useEffect(() => {
+    const element = readingRef.current
+    if (!element) return
+    const updateProgress = () => {
+      const available = element.scrollHeight - element.clientHeight
+      setReadingProgress(available > 0 ? Math.round((element.scrollTop / available) * 100) : 100)
+    }
+    updateProgress()
+    element.addEventListener('scroll', updateProgress)
+    return () => element.removeEventListener('scroll', updateProgress)
+  }, [reading, selectedBook])
 
   const normalizedQuery = normalizeSearch(query)
   const filtered = useMemo(() => books.filter((book) => {
@@ -46,7 +61,7 @@ export default function Home() {
   const toggleSaved = (id: number) => setSaved((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id])
 
   return (
-    <main className="site-shell">
+    <main className={theme === 'light' ? 'site-shell theme-light' : 'site-shell'}>
       <header className="topbar">
         <a href="#top" className="brand" aria-label="জ্ঞানের সমুদ্র হোমপেজ">
           <span className="brand-mark">জ</span>
@@ -57,7 +72,7 @@ export default function Home() {
           <a href="#about">আমাদের কথা</a>
           <a href="#roadmap">রোডম্যাপ</a>
         </nav>
-        <div className="top-actions"><button className="icon-button" aria-label="ভাষা পরিবর্তন">অ/আ</button><button className="outline-button">লগইন</button><button className="menu-button" aria-label="মেনু">☰</button></div>
+        <div className="top-actions"><button className="icon-button" aria-label={theme === 'dark' ? 'লাইট মোড চালু করুন' : 'ডার্ক মোড চালু করুন'} onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>{theme === 'dark' ? '☼' : '◐'}</button><button className="icon-button" aria-label="ভাষা পরিবর্তন">অ/আ</button><button className="outline-button">লগইন</button><button className="menu-button" aria-label="মেনু">☰</button></div>
       </header>
 
       <section className="hero" id="top">
@@ -80,7 +95,7 @@ export default function Home() {
       <section className="trust-strip" id="about"><div className="trust-intro"><span className="section-kicker">ব���শ্বস্ত উৎস</span><p>আপনার জ্ঞানযাত্রায়<br />আমাদের সঙ্গী</p></div><div className="source-list"><span>openstax</span><span>PROJECT<br /><b>GUTENBERG</b></span><span>arXiv</span><span>DOAJ</span><span>বাংলা<br /><b>একাডেমি</b></span></div></section>
 
       <section className="roadmap" id="roadmap"><div><span className="section-kicker">আমাদের স্বপ্ন</span><h2>জ্ঞানকে পৌঁছে দিতে চাই<br /><em>প্রতিটি মানুষের কাছে।</em></h2><p>আজকের এই ছোট্ট শুরু, আগামী দিনের এক বিশাল সংগ্রহ। আপনার সহযোগিতায় ২০৫৫ সালের মধ্যে আমরা তৈরি করব বিশ্বের সবচেয়ে বড় মুক্ত জ্ঞানভাণ্ডার।</p><button className="primary-button">আমাদের গল্প জানুন <span>→</span></button></div><div className="roadmap-stat"><strong>৯০ লক্ষ</strong><span>কন্টেন্টের লক্ষ্য</span><div className="progress"><span /></div><small>এখন পর্যন্ত ৪,২৮,৬১৯ সংগ্রহিত</small><div className="year-line"><span>২০২৪</span><i /><span>২০৫৫</span></div></div></section>
-      {selectedBook && <div className="reader-backdrop" role="presentation" onClick={() => setSelectedBook(null)}><section className="reader-modal" role="dialog" aria-modal="true" aria-labelledby="reader-title" onClick={(event) => event.stopPropagation()}><button className="reader-close" type="button" aria-label="রিডার বন্ধ করুন" onClick={() => setSelectedBook(null)}>×</button><div className="reader-cover" style={{ background: `linear-gradient(140deg, ${selectedBook.color}, #172033)` }}><span>{selectedBook.mark}</span></div><div className="reader-content"><span className="section-kicker">{selectedBook.type} · {selectedBook.year}</span><h2 id="reader-title">{selectedBook.title}</h2><p className="reader-author">{selectedBook.author}</p><p className="reader-description">{selectedBook.description}</p><div className="reader-meta"><span>{selectedBook.tag}</span><span>{selectedBook.source}</span></div><div className="reader-actions">{selectedBook.open ? <button className="primary-button" type="button" onClick={() => setReading(true)}>পড়া শুরু করুন <span>→</span></button> : <button className="outline-button" type="button" onClick={() => setReading(true)}>প্রিভিউ দেখুন</button>}<button className="outline-button" type="button" onClick={() => toggleSaved(selectedBook.id)}>{saved.includes(selectedBook.id) ? 'বুকমার্ক করা আছে' : 'বুকমার্ক করুন'}</button></div>{reading && <div className="reading-pane"><div className="reading-toolbar"><span>ব্রাউজারে পড়ুন</span><button type="button" onClick={() => setReading(false)}>বিস্তারিত দেখুন</button></div><article>{(readingText[selectedBook.id] ?? [selectedBook.description ?? 'এই কন্টেন্টের অনুমোদিত পূর্ণ পাঠ এখনো যুক্ত হয়নি।']).map((paragraph, index) => <p key={index}>{paragraph}</p>)}</article><small className="reader-note">এই রিডিং ভিউ কেবল অনুমোদিত ওপেন-অ্যাক্সেস কন্টেন্টের জন্য। কপিরাইট সুরক্ষিত সম্পূর্ণ বই বা পেপার এখানে কপি করা হয় না।</small></div>} {!reading && <small className="reader-note">পড়া শুরু করুন চাপলে এই প্যানেলের ভেতরেই পাঠ্য খুলবে।</small>}</div></section></div>}
+      {selectedBook && <div className="reader-backdrop" role="presentation" onClick={() => setSelectedBook(null)}><section className="reader-modal" role="dialog" aria-modal="true" aria-labelledby="reader-title" onClick={(event) => event.stopPropagation()}><button className="reader-close" type="button" aria-label="রিডার বন্ধ করুন" onClick={() => setSelectedBook(null)}>×</button><div className="reader-cover" style={{ background: `linear-gradient(140deg, ${selectedBook.color}, #172033)` }}><span>{selectedBook.mark}</span></div><div className="reader-content"><span className="section-kicker">{selectedBook.type} · {selectedBook.year}</span><h2 id="reader-title">{selectedBook.title}</h2><p className="reader-author">{selectedBook.author}</p><p className="reader-description">{selectedBook.description}</p><div className="reader-meta"><span>{selectedBook.tag}</span><span>{selectedBook.source}</span></div><div className="reader-actions">{selectedBook.open ? <button className="primary-button" type="button" onClick={() => setReading(true)}>পড়া শুরু করুন <span>→</span></button> : <button className="outline-button" type="button" onClick={() => setReading(true)}>প্রিভিউ দেখুন</button>}<button className="outline-button" type="button" onClick={() => toggleSaved(selectedBook.id)}>{saved.includes(selectedBook.id) ? 'বুকমার্ক করা আছে' : 'বুকমার্ক করুন'}</button></div>{reading && <div className="reading-pane"><div className="reading-toolbar"><span>ব্রাউজারে পড়ুন</span><button type="button" onClick={() => setReading(false)}>বিস্তারিত দেখুন</button></div><div className="reader-progress" aria-label={`পাঠের অগ্রগতি ${readingProgress}%`}><span style={{ width: `${readingProgress}%` }} /></div><div className="progress-label"><span>পাঠের অগ্রগতি</span><strong>{readingProgress}%</strong></div><article ref={readingRef}>{(readingText[selectedBook.id] ?? [selectedBook.description ?? 'এই কন্টেন্টের অনুমোদিত পূর্ণ পাঠ এখনো যুক্ত হয়নি।']).map((paragraph, index) => <p key={index}>{paragraph}</p>)}</article><small className="reader-note">এই রিডিং ভিউ কেবল অনুমোদিত ওপেন-অ্যাক্সেস কন্টেন্টের জন্য। কপিরাইট সুরক্ষিত সম্পূর্ণ বই বা পেপার এখানে কপি করা হয় না।</small></div>} {!reading && <small className="reader-note">পড়া শুরু করুন চাপলে এই প্যানেলের ভেতরেই পাঠ্য খুলবে।</small>}</div></section></div>}
       <footer><a href="#top" className="brand"><span className="brand-mark">জ</span><span><strong>জ্ঞানের সমুদ্র</strong><small>জ্ঞান সবার অধিকার</small></span></a><p>© ২০২৪ জ্ঞানের সমুদ্র · একটি অলাভজনক উদ্যোগ</p><div><a href="#about">গোপনীয়তা</a><a href="#about">যোগাযোগ</a></div></footer>
     </main>
   )
