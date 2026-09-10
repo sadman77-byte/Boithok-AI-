@@ -13,18 +13,27 @@ const books = [
 
 const tabs = ['সব', 'ফিকশন', 'নন-ফিকশন', 'গবেষণা']
 
+const normalizeSearch = (value: string) => value
+  .normalize('NFKC')
+  .toLocaleLowerCase('bn-BD')
+  .replace(/[–—-]/g, ' ')
+  .replace(/\s+/g, ' ')
+  .trim()
+
 export default function Home() {
   const [activeTab, setActiveTab] = useState('সব')
   const [query, setQuery] = useState('')
   const [onlyOpen, setOnlyOpen] = useState(false)
   const [saved, setSaved] = useState<number[]>([])
 
+  const normalizedQuery = normalizeSearch(query)
   const filtered = useMemo(() => books.filter((book) => {
+    const searchableText = normalizeSearch(`${book.type} ${book.title} ${book.author} ${book.tag} ${book.year}`)
     const matchesTab = activeTab === 'সব' || book.type === activeTab
-    const matchesQuery = `${book.title} ${book.author} ${book.tag}`.toLowerCase().includes(query.toLowerCase())
+    const matchesQuery = !normalizedQuery || searchableText.includes(normalizedQuery)
     const matchesOpen = !onlyOpen || book.open
     return matchesTab && matchesQuery && matchesOpen
-  }), [activeTab, query, onlyOpen])
+  }), [activeTab, normalizedQuery, onlyOpen])
 
   const toggleSaved = (id: number) => setSaved((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id])
 
@@ -48,7 +57,7 @@ export default function Home() {
           <div className="eyebrow"><span className="eyebrow-dot" />জ্ঞান সবার জন্য, বিনামূল্যে</div>
           <h1>জানার কোনো শেষ নেই,<br /><em>শুরু হোক আজই।</em></h1>
           <p>বাংলা ও বিশ্বের সেরা বই, গবেষণা এবং চিন্তার সংগ্রহ—একটি জায়গায়, সবার নাগালের মধ্যে।</p>
-          <div className="hero-search"><span>⌕</span><input aria-label="বই বা গবেষণা খুঁজুন" placeholder="বই, লেখক বা বিষয় খুঁজুন..." value={query} onChange={(event) => setQuery(event.target.value)} /><kbd>⌘ K</kbd></div>
+          <form className="hero-search" role="search" onSubmit={(event) => { event.preventDefault(); document.querySelector('#library')?.scrollIntoView({ behavior: 'smooth' }) }}><span aria-hidden="true">⌕</span><input aria-label="বই বা গবেষণা খুঁজুন" placeholder="বই, লেখক বা বিষয় খুঁজুন..." value={query} onChange={(event) => setQuery(event.target.value)} /><button className="search-submit" type="submit">খুঁজুন</button><kbd>⌘ K</kbd></form>
           <div className="hero-meta"><span><b>৪,২৮,৬১৯</b>+ বই ও পেপার</span><span className="meta-separator" /><span><b>৬৮</b>টি ভাষা</span><span className="meta-separator" /><span><b>১০০%</b> বিনামূল্যে</span></div>
         </div>
         <div className="hero-art" aria-hidden="true"><div className="orbit orbit-one" /><div className="orbit orbit-two" /><div className="globe"><span className="globe-line line-one" /><span className="globe-line line-two" /><span className="globe-line line-three" /></div><div className="floating-card card-top"><span className="mini-icon">✦</span><span><b>আজকের নতুন</b><small>২,৪৩০টি কন্টেন্ট যোগ হয়েছে</small></span></div><div className="floating-card card-bottom"><span className="pulse">●</span><span><b>আপনার জ্ঞানের যাত্রা</b><small>আজ ১২ মিনিট পড়েছেন</small></span></div></div>
