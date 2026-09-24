@@ -4,6 +4,10 @@
 
 https://boithok-ai-hub.lovable.app
 
+Alternative :
+
+https://independent-boithok-smart-hub.base44.app
+
 # Boithok AI
 
 **Boithok AI** is an all-in-one platform providing access to 18 free AI models. It offers chat, full PDF translation, and image generation using Hugging Face and Weather AI via a streamlined interface deployed on Lovable.
