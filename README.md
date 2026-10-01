@@ -27,7 +27,8 @@ Demonstrations :
 
 <img width="1024" height="1024" alt="1000128788" src="https://github.com/user-attachments/assets/0f8984ed-6dee-4d62-8e79-0efe79fe0941" />
 <img width="1024" height="1024" alt="1000131377" src="https://github.com/user-attachments/assets/ea78173e-6172-4332-8ff6-5989cfdb4b7f" />
-![1000131375](https://github.com/user-attachments/assets/add160f5-bf73-48c1-95b1-e4dec472a13e)
+<img width="1408" height="768" alt="1000131375" src="https://github.com/user-attachments/assets/f1b779cd-a302-4851-85f0-91400d9b4613" />
+
 
 Above-mentioned generated Images.
 
