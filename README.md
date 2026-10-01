@@ -121,8 +121,8 @@ Bengali poems by AI generated
 * **Frontend/Backend Framework:** Lovable (With Server Functions)
 * **Model APIs:** Hugging Face Inference API
 * **Image Generation:** Weather AI API
-* **Data & Crawling Tools:** Common Crawl / CCBot pipeline integrations
-
+* **Data & Crawling Tools:** Common Crawl and 
+https://saveweb2zip.com/en
 ---
 
 ## Getting Started
